@@ -1787,7 +1787,1224 @@ SITES.appendix = {
     return null;
   },
   notes: 'Version 9 dropped the N0 requirement for Stage IVA, so M1a is Stage IVA with any N. LAMN and HAMN moved from borderline to in-situ behaviour and are staged with the same system as other appendix adenocarcinomas. The Appendix Version 9 protocol is format-driven: the correct stage group depends on the treatment setting (initial resection versus treatment after perforation or incomplete resection), so the R category must be selected. M1a and M1b are pathological categories.'
-};</script>
+};
+/* GU block. Category wording, scope, grade and attribution come from Pathology
+   Outlines. Stage composition comes from NCI Thesaurus EVS except where EVS
+   publishes a strictly coarser version of the same AJCC 8 table, in which case the
+   fuller Pathology Outlines table is used and the substitution is stated in that
+   site's notes. Where the two sources disagree the disagreement is stated in notes
+   rather than silently resolved.
+   INCLUDED: bladder, renalPelvis, ureter, penis, maleUrethraProstatic,
+   maleUrethraPenile, testis, renalCellCancer, prostate.
+   NOT INCLUDED: nothing in the approved genitourinary list. The female urethra
+   remains unapproved and is deliberately absent. */
+
+SITES.bladder = {
+  id: 'bladder', name: 'Bladder cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All carcinomas of the bladder are covered by this staging system. The following topics are not covered: urachal carcinoma, paraganglioma, sarcoma or lymphoma.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Ta', 'Tis', 'T1', 'T2a', 'T2b', 'T3a', 'T3b', 'T4a', 'T4b'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Ta': 'noninvasive papillary carcinoma',
+      'Tis': 'carcinoma in situ',
+      'T1': 'invades lamina propria',
+      'T2a': 'invades inner half of muscularis propria',
+      'T2b': 'invades outer half of muscularis propria',
+      'T3a': 'microscopically invades perivesical tissue',
+      'T3b': 'macroscopically invades perivesical tissue',
+      'T4a': 'directly invades prostatic stroma, seminal vesicles, uterus or vagina',
+      'T4b': 'directly invades pelvic wall or abdominal wall'
+    }
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2', 'N3'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'metastasis in 1 true pelvic lymph node',
+      'N2': 'metastasis in greater than 1 true pelvic lymph node',
+      'N3': 'metastasis in common iliac lymph node'
+    }
+  },
+  M: {
+    cats: ['M0', 'M1a', 'M1b'],
+    def: {
+      'M0': 'no distant metastasis',
+      'M1a': 'metastasis in nonregional lymph node (ex: caval / aortic, inguinal)',
+      'M1b': 'metastasis in other distant site'
+    }
+  },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3', 'LG', 'HG'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed',
+      'G1': 'well differentiated',
+      'G2': 'moderately differentiated',
+      'G3': 'poorly differentiated',
+      'LG': 'low grade',
+      'HG': 'high grade'
+    },
+    notes: 'Grade is recorded by Pathology Outlines but does NOT enter the AJCC 8 bladder stage group, so it is excluded from staging here. Pathology Outlines groups the categories under two headings: "Urothelial carcinoma" (LG, HG, GX, G1, G2, G3) and "Squamous cell carcinoma and adenocarcinoma".'
+  },
+  noStage: function (inp) {
+    if (inp.M === 'M0') {
+      if (inp.T === 'TX') return 'AJCC 8 assigns no stage group to TX with M0 in the bladder table. The primary tumor cannot be assessed; TX reaches Stage IVA only through the "Any T" rows for M1a and M1b.';
+      if (inp.T === 'T0') return 'AJCC 8 assigns no stage group to T0 with M0 in the bladder table. There is no primary tumor to stage.';
+      if (inp.N === 'NX' && inp.T !== 'T4b') return 'The AJCC 8 bladder table admits NX only in the Stage IVA row written as "T4b, any N, M0" and in the "any T, any N" rows for M1a and M1b. It defines no stage group for ' + inp.T + ' with NX and M0, so the regional lymph nodes cannot be assessed at this T.';
+      if (inp.T === 'Ta' || inp.T === 'Tis') {
+        if (inp.N === 'N1' || inp.N === 'N2' || inp.N === 'N3') return 'Neither source publishes a stage group for a noninvasive bladder tumour (Ta or Tis) with regional nodal metastasis and M0. The AJCC 8 bladder table pairs Ta and Tis with N0 only, as 0a and 0is, and its nodal rows start at T1: IIIA is T1-T4a N1 M0 and IIIB is T1-T4a N2-N3 M0. Ta and Tis with positive nodes is a gap in the published table, not a row missing here.';
+      }
+    }
+    return null;
+  },
+  sets: [
+    { id: 'bladder_tnm', label: 'Table. AJCC 8 Bladder Cancer Stage Groups', rows: [
+      { g: '0a', T: 'Ta', N: 'N0', M: 'M0' },
+      { g: '0is', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2a,T2b', N: 'N0', M: 'M0' },
+      { g: 'IIIA', T: 'T3a,T3b,T4a', N: 'N0', M: 'M0' },
+      { g: 'IIIA', T: 'T1-T4a', N: 'N1', M: 'M0' },
+      { g: 'IIIB', T: 'T1-T4a', N: 'N2-N3', M: 'M0' },
+      { g: 'IVA', T: 'T4b', N: 'Any N', M: 'M0' },
+      { g: 'IVA', T: 'Any T', N: 'Any N', M: 'M1a' },
+      { g: 'IVB', T: 'Any T', N: 'Any N', M: 'M1b' }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C140416  Bladder Cancer by AJCC v8 Stage',
+    'C140380  Bladder Cancer TNM Finding v8',
+    'PathologyOutlines.com/topic/bladderstaging.html (Zynger D, author update 31 August 2023, staff update 2 October 2025)'
+  ],
+  notes: 'THE TWO SOURCES AGREE EXACTLY ON EVERY STAGE ROW, which is why this site is trusted: EVS C140417-C140424 gives 0a Ta N0 M0, 0is Tis N0 M0, I T1 N0 M0, II (T2a N0 M0)(T2b N0 M0), IIIA (T3a,T3b,T4a N0 M0) and (T1-T4a N1 M0), IIIB (T1-T4a N2,N3 M0), IVA (T4b N0 M0) and (any T any N M1a), IVB (any T any N M1b), and Pathology Outlines publishes the identical table. There is no bare T2, T3 or T4 category, so T2 is not a selectable parent - only T2a and T2b exist. TWO ROW SPECS ARE WRITTEN AS EXPLICIT LISTS RATHER THAN AS RANGES: AJCC prints Stage II as T2a-T2b and Stage IIIA as T3a-T4a, but the range reader in this engine matches a lettered range only at its endpoints, so "T2a-T2b" would match nothing at all and "T3a-T4a" would silently drop T3b. The lists "T2a,T2b" and "T3a,T3b,T4a" are the same category sets the printed ranges denote. The N1 and N2-N3 rows keep the range form "T1-T4a" because that form does include the interior subdivisions T2a, T2b, T3a and T3b while correctly excluding T4b. M0 is not defined as a category on the Pathology Outlines page although the stage table references it; the M0 wording here is taken from the EVS stage definitions, which state "M0: No distant metastasis." NX is admitted to stage IV only alongside T4b, so NX with any earlier T and M0 is refused rather than guessed. Ta and Tis are paired with N0 only, so Ta or Tis with N1, N2 or N3 and M0 is refused as a gap in the published table. The yp and r prefixes are reused BY CONVENTION and are labelled as such, because the source publishes a single table for all assessment bases. T and N affixes are pinned to p because the source publishes pathologic wording only.'
+};
+
+SITES.renalPelvis = {
+  id: 'renalPelvis', name: 'Renal pelvis cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'This staging system applies to renal pelvis urothelial (transitional cell) carcinoma, including histologic variants micropapillary and nested subtypes. It does not apply to renal cell carcinomas, renal medullary carcinomas or collecting duct carcinomas (all are staged according to the classification for kidney), lymphomas, and mesenchymal tumors (staged according to the classification for soft tissue sarcoma of the abdomen and thoracic visceral organs).',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Ta', 'Tis', 'T1', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Ta': 'noninvasive papillary carcinoma',
+      'Tis': 'carcinoma in situ',
+      'T1': 'invades subepithelial connective tissue',
+      'T2': 'invades muscle',
+      'T3': 'invades beyond muscularis into peripelvic fat or into the renal parenchyma',
+      'T4': 'invades adjacent organs, or through the kidney into the perinephric fat'
+    }
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'metastasis in a single lymph node, 2 cm or less in greatest dimension',
+      'N2': 'metastasis in a single lymph node, more than 2 cm in greatest dimension; or multiple lymph nodes'
+    }
+  },
+  M: { cats: ['M0', 'M1'], def: { 'M0': 'no distant metastasis', 'M1': 'distant metastasis' } },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3', 'LG', 'HG'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed', 'G1': 'well differentiated', 'G2': 'moderately differentiated',
+      'G3': 'poorly differentiated', 'LG': 'low grade', 'HG': 'high grade'
+    },
+    notes: 'Recorded by Pathology Outlines but does not enter the AJCC 8 stage group, so it is excluded from staging here.'
+  },
+  noStage: function (inp) {
+    if (inp.M === 'M0') {
+      if (inp.T === 'TX') return 'AJCC 8 assigns no stage group to TX with M0 in the renal pelvis table. The primary tumor cannot be assessed; TX reaches Stage IV only through the "Any T" rows.';
+      if (inp.T === 'T0') return 'AJCC 8 assigns no stage group to T0 with M0 in the renal pelvis table. There is no primary tumor to stage.';
+      if (inp.N === 'NX') return 'The AJCC 8 renal pelvis table defines no stage group for NX with M0. Its Stage IV rows are written "T4 N0 M0", "any T N1 M0" and "any T N2 M0", none of which admit NX. NOTE: Pathology Outlines writes Stage IV as "T4 NX-2 M0-1", which WOULD admit NX, so the two sources disagree here and the AJCC text is needed to settle it. NX does reach Stage IV through the "any T, any N, M1" row.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'renalpelvis_tnm', label: 'Table. AJCC 8 Renal Pelvis Cancer Stage Groups', rows: [
+      { g: '0a', T: 'Ta', N: 'N0', M: 'M0' },
+      { g: '0is', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'N0', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N1', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N2', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C140355  Renal Pelvis and Ureter Cancer by AJCC v8 Stage',
+    'C140331  Renal Pelvis and Ureter Cancer TNM Finding v8',
+    'PathologyOutlines.com/topic/bladderstagingrenalpelvis.html (Zynger D, author update 9 September 2021, staff update 1 December 2022)'
+  ],
+  notes: 'KEPT SEPARATE FROM URETER because AJCC assigns a different T3 to each: renal pelvis T3 is invasion into peripelvic fat or renal parenchyma, whereas ureter T3 is invasion into periureteric fat. Everything else in the T, N and M axes is identical between the two subsites, and the two subsites share one stage table. The stage rows are taken from EVS C140356-C140373, which resolves the run-together notation used by Pathology Outlines ("T4NX - 2M0 - 1"). That notation was ambiguous on its face: read as a T range, an N range and an M range it yields the same three Stage IV rows as EVS, so the two sources agree once the notation is expanded, and the expansion is recorded here rather than left implicit. The one cell where they still differ is T4 with NX and M0, which EVS excludes and Pathology Outlines includes; that combination is refused with an explicit message rather than resolved by guesswork. Pathology Outlines states that pM is not included in the surgical pathology report unless there is pathologic evidence of distant metastasis, and that pMX is no longer utilized.'
+};
+
+SITES.ureter = {
+  id: 'ureter', name: 'Ureter cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'This staging system applies to ureter urothelial (transitional cell) carcinoma, including histologic variants micropapillary and nested subtypes.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Ta', 'Tis', 'T1', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Ta': 'noninvasive papillary carcinoma',
+      'Tis': 'carcinoma in situ',
+      'T1': 'invades lamina propria',
+      'T2': 'invades muscularis propria',
+      'T3': 'invades periureteric fat',
+      'T4': 'invades adjacent organs or perinephric fat'
+    }
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': '1 lymph node with tumor deposit <= 2 cm',
+      'N2': '1 lymph node with tumor deposit > 2 cm or metastases in multiple nodes'
+    }
+  },
+  M: { cats: ['M0', 'M1'], def: { 'M0': 'no distant metastasis', 'M1': 'distant metastasis' } },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3', 'LG', 'HG'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed', 'G1': 'well differentiated', 'G2': 'moderately differentiated',
+      'G3': 'poorly differentiated', 'LG': 'low grade', 'HG': 'high grade'
+    },
+    notes: 'Recorded by Pathology Outlines but does not enter the AJCC 8 stage group, so it is excluded from staging here.'
+  },
+  noStage: function (inp) {
+    if (inp.M === 'M0') {
+      if (inp.T === 'TX') return 'AJCC 8 assigns no stage group to TX with M0 in the ureter table. The primary tumor cannot be assessed; TX reaches Stage IV only through the "Any T" rows.';
+      if (inp.T === 'T0') return 'AJCC 8 assigns no stage group to T0 with M0 in the ureter table. There is no primary tumor to stage.';
+      if (inp.N === 'NX') return 'The AJCC 8 ureter table defines no stage group for NX with M0. Its Stage IV rows are written "T4 N0 M0", "any T N1 M0" and "any T N2 M0", none of which admit NX. NOTE: Pathology Outlines writes Stage IV as "T4 NX-2 M0-1", which WOULD admit NX, so the two sources disagree here and the AJCC text is needed to settle it. NX does reach Stage IV through the "any T, any N, M1" row.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'ureter_tnm', label: 'Table. AJCC 8 Ureter Cancer Stage Groups', rows: [
+      { g: '0a', T: 'Ta', N: 'N0', M: 'M0' },
+      { g: '0is', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'N0', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N1', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N2', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C140355  Renal Pelvis and Ureter Cancer by AJCC v8 Stage',
+    'C140331  Renal Pelvis and Ureter Cancer TNM Finding v8',
+    'PathologyOutlines.com/topic/bladderstagingureters.html (Zynger D, author and staff update 27 January 2023)'
+  ],
+  notes: 'Identical to the renal pelvis table except for T1, T2 and T3 wording, which is why the two are separate sites sharing one stage table. Stage rows are taken from EVS, which resolves the run-together Stage IV notation used by Pathology Outlines; the expansion is identical to the renal pelvis one and is recorded there. T4 with NX and M0 is the single cell where the two sources disagree (EVS excludes NX, Pathology Outlines includes it) and is refused with an explicit message instead of being resolved by guesswork. SOURCE DEFECT PRESERVED: the Pathology Outlines registry data collection variables for this page include "Intratubular renal in situ spread", which is renal terminology carried over from the renal pelvis page. That is reproduced by the source as written and is not a term used for ureter.'
+};
+
+SITES.penis = {
+  id: 'penis', name: 'Penile cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All carcinomas of the penis are covered by this staging system. These topics are not covered: penile urethral carcinoma, sarcoma and melanoma.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Ta', 'Tis', 'T1a', 'T1b', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Ta': 'noninvasive carcinoma (broad pushing penetration is permitted)',
+      'Tis': 'carcinoma in situ',
+      'T1a': 'subepithelial invasion without lymphovascular invasion, perineural invasion or grade 3',
+      'T1b': 'subepithelial invasion with lymphovascular invasion, perineural invasion or grade 3',
+      'T2': 'invasion of corpus spongiosum',
+      'T3': 'invasion of corpus cavernosum',
+      'T4': 'invasion of adjacent structures including scrotum, prostate and pubic bone'
+    }
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2', 'N3'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'metastasis in 1 or 2 unilateral inguinal node(s)',
+      'N2': 'metastasis in 3 or more unilateral inguinal nodes or bilateral inguinal nodes',
+      'N3': 'extranodal extension or metastasis to pelvic lymph node'
+    }
+  },
+  M: { cats: ['M0', 'M1'], def: { 'M0': 'no distant metastasis', 'M1': 'distant metastasis present' } },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed', 'G1': 'well differentiated',
+      'G2': 'moderately differentiated', 'G3': 'poorly differentiated'
+    },
+    notes: 'Grade enters the T1a versus T1b distinction rather than the stage group: T1a excludes lymphovascular invasion, perineural invasion and grade 3, while T1b includes any of them. It is therefore recorded here but excluded from staging.'
+  },
+  noStage: function (inp) {
+    if (inp.M === 'M0') {
+      if (inp.T === 'TX') return 'AJCC 8 assigns no stage group to TX with M0 in the penile table. The primary tumor cannot be assessed; TX reaches Stage IV only through the "Any T" rows.';
+      if (inp.T === 'T0') return 'AJCC 8 assigns no stage group to T0 with M0 in the penile table. There is no primary tumor to stage.';
+      if (inp.N === 'NX' && inp.T !== 'T4') return 'The AJCC 8 penile table admits NX only in the Stage IV row written as "T4, any N, M0" and in the "any T, any N, M1" row. It defines no stage group for ' + inp.T + ' with NX and M0, so the regional lymph nodes cannot be assessed at this T.';
+      if (inp.T === 'Ta' || inp.T === 'Tis') {
+        if (inp.N === 'N1' || inp.N === 'N2') return 'Neither source publishes a stage group for a noninvasive penile tumour (Ta or Tis) with N1 or N2 and M0. The AJCC 8 penile table pairs Ta and Tis with N0 only, as 0a and 0is, and its nodal rows IIIA (T1-T3 N1 M0) and IIIB (T1-T3 N2 M0) start at T1. N3 does reach Stage IV through the "any T, N3, M0" row, so only N1 and N2 are gaps here.';
+      }
+    }
+    return null;
+  },
+  sets: [
+    { id: 'penis_tnm', label: 'Table. AJCC 8 Penile Cancer Stage Groups', rows: [
+      { g: '0is', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: '0a', T: 'Ta', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1a', N: 'N0', M: 'M0' },
+      { g: 'IIA', T: 'T1b', N: 'N0', M: 'M0' },
+      { g: 'IIA', T: 'T2', N: 'N0', M: 'M0' },
+      { g: 'IIB', T: 'T3', N: 'N0', M: 'M0' },
+      { g: 'IIIA', T: 'T1-T3', N: 'N1', M: 'M0' },
+      { g: 'IIIB', T: 'T1-T3', N: 'N2', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'Any N', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N3', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
+    ]},
+  ],
+  ypSets: 'same',
+  sources: [
+    'C140075  Penile Cancer by AJCC v8 Stage',
+    'C140044  Penile Cancer TNM Finding v8',
+    'PathologyOutlines.com/topic/penscrotumpenisstaging.html (Zynger D, author and staff update 7 February 2023)'
+  ],
+  notes: 'EVS CORRECTS A HOLE IN PATHOLOGY OUTLINES HERE. Pathology Outlines decomposes Stage IV into "T4 N1-3, X M0", "T1-4, X N3 M0" and "T1-4, X N1-3, X M1", which leaves T4 with N0 and M0 assigned to no stage group at all. EVS C140087 instead writes Stage IV as "(T4, Any N, M0); (Any T, N3, M0); (Any T, Any N, M1)", so T4 N0 M0 is Stage IV. The EVS reading is used here because it is complete where the other is not, and because EVS writes "Any N" explicitly when it means any N. Note the two are otherwise equivalent: any T N3 M0 and any T any N M1 appear in both. Do not assume the Pathology Outlines decomposition when reading this table. yp reuses the single table BY CONVENTION; r is NOT declared, because the Pathology Outlines page for this site does not list an r prefix the way the other GU pages do, and no recurrent penile table was available from either source.'
+};
+
+SITES.maleUrethraProstatic = {
+  id: 'maleUrethraProstatic', name: 'Urethral cancer - prostatic urethra', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All carcinomas of the prostatic urethra are covered by this staging system.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Ta', 'Tis', 'T1', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Ta': 'noninvasive papillary carcinoma',
+      'Tis': 'carcinoma in situ involving the prostatic urethra, periurethra or ducts',
+      'T1': 'tumor invades urethral subepithelial connective tissue immediately underlying the urothelium',
+      'T2': 'tumor invades the prostatic stroma surrounding ducts, either by direct extension from the urothelial surface or by invasion from prostatic ducts',
+      'T3': 'tumor invades the periprostatic fat',
+      'T4': 'tumor invades other adjacent organs (e.g., extraprostatic invasion of the bladder wall, rectal wall)'
+    }
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'single regional lymph node metastasis in the inguinal region or true pelvis [perivesical, obturator, internal (hypogastric) and external iliac], or presacral lymph node',
+      'N2': 'multiple regional lymph node metastasis in the inguinal region or true pelvis [perivesical, obturator, internal (hypogastric) and external iliac], or presacral lymph node'
+    }
+  },
+  M: { cats: ['M0', 'M1'], def: { 'M0': 'no distant metastasis', 'M1': 'distant metastasis' } },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3', 'LG', 'HG'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed', 'G1': 'well differentiated', 'G2': 'moderately differentiated',
+      'G3': 'poorly differentiated', 'LG': 'low grade', 'HG': 'high grade'
+    },
+    notes: 'Recorded by Pathology Outlines but does not enter the AJCC 8 stage group, so it is excluded from staging here.'
+  },
+  noStage: function (inp) {
+    if (inp.M === 'M0') {
+      if (inp.T === 'TX') return 'AJCC 8 assigns no stage group to TX with M0 in the urethral table. The primary tumor cannot be assessed; TX reaches Stage IV only through the "Any T" rows.';
+      if (inp.T === 'T0') return 'AJCC 8 assigns no stage group to T0 with M0 in the urethral table. There is no primary tumor to stage.';
+      if (inp.N === 'NX') return 'The AJCC 8 urethral table defines no stage group for NX with M0. Its Stage IV rows are written "T4 N0 M0", "T4 N1 M0" and "any T N2 M0", none of which admit NX. NX does reach Stage IV through the "any T, any N, M1" row.';
+      if (inp.T === 'Ta' || inp.T === 'Tis') {
+        if (inp.N === 'N1') return 'Neither source publishes a stage group for a noninvasive urethral tumour (Ta or Tis) with N1 and M0. The AJCC 8 urethral table pairs Ta and Tis with N0 only, as 0a and 0is, and its Stage III N1 rows are written for T1, T2 and T3. N2 does reach Stage IV through the "any T, N2, M0" row, so only N1 is a gap here.';
+      }
+    }
+    return null;
+  },
+  sets: [
+    { id: 'maleprosturethra_tnm', label: 'Table. AJCC 8 Urethral Cancer Stage Groups (prostatic urethra)', rows: [
+      { g: '0a', T: 'Ta', N: 'N0', M: 'M0' },
+      { g: '0is', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T1', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T2', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N1', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'N0', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'N1', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N2', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C140457  Urethral Cancer by AJCC v8 Stage',
+    'C140428  Urethral Cancer TNM Finding v8',
+    'PathologyOutlines.com/topic/prostateurethrastaging.html (Zynger D, author update 5 January 2023, staff update 21 November 2024, update in progress)'
+  ],
+  notes: 'SPLIT INTO TWO SITES BECAUSE AJCC PUBLISHES TWO DIFFERENT T DEFINITIONS UNDER THE SAME CODES. The prostatic urethra and the penile urethra share every category label TX, T0, Ta, Tis, T1, T2, T3, T4 but describe completely different anatomy: prostatic T1 is invasion of urethral subepithelial connective tissue immediately underlying the urothelium, whereas penile T1 is invasion of urethral subepithelial connective tissue; prostatic T3 is invasion of periprostatic fat, whereas penile T3 is invasion of corpus cavernosum. Merging them into one T axis would silently attach the wrong anatomy to half the categories, so maleUrethraPenile carries the other half. Both subsites share ONE stage table, and EVS states the subsite-specific T wording inside each stage definition, which is what makes the split source-backed rather than an editorial choice. Pathology Outlines, by contrast, publishes a single stage table and two pT tables without saying which subsite the stage table governs; the EVS wording resolves that ambiguity by showing that every T definition applies to one subsite or the other and that the same stage rows serve both.'
+};
+
+SITES.maleUrethraPenile = {
+  id: 'maleUrethraPenile', name: 'Urethral cancer - male penile urethra', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All carcinomas of the male penile urethra are covered by this staging system.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Ta', 'Tis', 'T1', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Ta': 'noninvasive papillary carcinoma',
+      'Tis': 'carcinoma in situ',
+      'T1': 'tumor invades subepithelial connective tissue',
+      'T2': 'tumor invades any of the following: corpus spongiosum, periurethral muscle',
+      'T3': 'tumor invades any of the following: corpus cavernosum, anterior vagina',
+      'T4': 'tumor invades other adjacent organs (e.g., invasion of the bladder wall)'
+    }
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'single regional lymph node metastasis in the inguinal region or true pelvis [perivesical, obturator, internal (hypogastric) and external iliac], or presacral lymph node',
+      'N2': 'multiple regional lymph node metastasis in the inguinal region or true pelvis [perivesical, obturator, internal (hypogastric) and external iliac], or presacral lymph node'
+    }
+  },
+  M: { cats: ['M0', 'M1'], def: { 'M0': 'no distant metastasis', 'M1': 'distant metastasis' } },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3', 'LG', 'HG'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed', 'G1': 'well differentiated', 'G2': 'moderately differentiated',
+      'G3': 'poorly differentiated', 'LG': 'low grade', 'HG': 'high grade'
+    },
+    notes: 'Recorded by Pathology Outlines but does not enter the AJCC 8 stage group, so it is excluded from staging here.'
+  },
+  noStage: function (inp) {
+    if (inp.M === 'M0') {
+      if (inp.T === 'TX') return 'AJCC 8 assigns no stage group to TX with M0 in the urethral table. The primary tumor cannot be assessed; TX reaches Stage IV only through the "Any T" rows.';
+      if (inp.T === 'T0') return 'AJCC 8 assigns no stage group to T0 with M0 in the urethral table. There is no primary tumor to stage.';
+      if (inp.N === 'NX') return 'The AJCC 8 urethral table defines no stage group for NX with M0. Its Stage IV rows are written "T4 N0 M0", "T4 N1 M0" and "any T N2 M0", none of which admit NX. NX does reach Stage IV through the "any T, any N, M1" row.';
+      if (inp.T === 'Ta' || inp.T === 'Tis') {
+        if (inp.N === 'N1') return 'Neither source publishes a stage group for a noninvasive urethral tumour (Ta or Tis) with N1 and M0. The AJCC 8 urethral table pairs Ta and Tis with N0 only, as 0a and 0is, and its Stage III N1 rows are written for T1, T2 and T3. N2 does reach Stage IV through the "any T, N2, M0" row, so only N1 is a gap here.';
+      }
+    }
+    return null;
+  },
+  sets: [
+    { id: 'malepenileurethra_tnm', label: 'Table. AJCC 8 Urethral Cancer Stage Groups (male penile urethra)', rows: [
+      { g: '0a', T: 'Ta', N: 'N0', M: 'M0' },
+      { g: '0is', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T1', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T2', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N1', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'N0', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'N1', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'N2', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C140457  Urethral Cancer by AJCC v8 Stage',
+    'C140428  Urethral Cancer TNM Finding v8',
+    'PathologyOutlines.com/topic/prostateurethrastaging.html (Zynger D, author update 5 January 2023, staff update 21 November 2024, update in progress)'
+  ],
+  notes: 'The penile-urethra half of the pair documented on maleUrethraProstatic, and it shares that site\'s stage table exactly. The two sites differ only in T1, T2, T3 and T4 wording. One wording note preserved verbatim from EVS: the penile-urethra T3 definition reads "tumor invades any of the following: corpus cavernosum, anterior vagina", and the "anterior vagina" element comes from the shared AJCC wording for this subsite and the female urethra. It is reproduced as the source states it and has not been edited.'
+};
+
+SITES.testis = {
+  id: 'testis', name: 'Testicular cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All testicular postpubertal germ cell tumors and malignant sex cord stromal tumors are covered by this staging system. These topics are not covered: spermatocytic tumor, nonmalignant sex cord stromal tumor, prepubertal germ cell tumor, hematopoietic tumors and paratesticular tumors',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'Tis', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'Tis': 'germ cell neoplasia in situ',
+      'T1': 'nonpure seminoma confined to testis / tunica albuginea / rete and no lymphovascular invasion (LVI)',
+      'T1a': 'seminoma < 3 cm confined to testis / tunica albuginea / rete and no LVI',
+      'T1b': 'seminoma >= 3 cm confined to testis / tunica albuginea / rete and no LVI',
+      'T2': 'lymphovascular, hilar fat, epididymal or tunica vaginalis invasion',
+      'T3': 'direct spermatic cord soft tissue invasion',
+      'T4': 'direct scrotum invasion'
+    },
+    notes: 'Seminoma is subclassified as pT1a / b based on a 3 cm threshold but nonpure seminoma is not, so T1 and T1a/T1b are alternatives rather than a nested set and T1a/T1b are the seminoma-only pair. Largest aggregate tumor size should be obtained, encompassing all adjacent nodules, even with different gross appearances rather than regarding nodules as separate smaller tumors. Involvement of the tunica albuginea does not impact pT classification. Tumor involvement of the tunica vaginalis is classified as pT2. Epididymal invasion is classified as pT2. LVI of the spermatic cord is pT2 not pT3. Tumor within the soft tissue below the level of the epididymal head is considered hilar fat invasion and is classified as pT2; tumor within the soft tissue beyond the angle between the epididymis and spermatic cord is classified as pT3. As discontinuous spermatic cord invasion is theorized to extend into the soft tissue via lymphovascular invasion and shows a trend towards a worse prognosis compared to pT3, it is now classified as pM1 - see the M axis note.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2', 'N3'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': '1 - 5 involved nodes with node size <= 2 cm',
+      'N2': '> 5 involved nodes or extranodal extension or involved nodes > 2 cm and <= 5 cm',
+      'N3': 'lymph node mass > 5 cm'
+    },
+    notes: 'Regional lymph nodes = interaortocaval, para / periaortic, paracaval, preaortic, precaval, retroaortic and retrocaval nodes. The size used to classify untreated lymph nodes is the overall lymph node size rather than the size of the metastatic deposit. Per the AJCC chapter 1 regarding classification post therapy, "necrotic cells currently play no role in assigning the ypT and ypN".'
+  },
+  M: {
+    cats: ['M0', 'M1', 'M1a', 'M1b'],
+    def: {
+      'M0': 'without evidence of distant metastasis',
+      'M1': 'distant metastasis, with no subcategory published for it',
+      'M1a': 'nonregional lymph node (e.g., iliac, inguinal, pelvic NOS) or lung metastasis',
+      'M1b': 'distant visceral metastasis'
+    },
+    notes: 'The source defines only M1a and M1b; M0 is not given a definition on the page although the stage table references it, and its wording here is taken from the EVS stage definition "M0: Testicular cancer without evidence of distant metastasis." M1 is offered as a bare parent because AJCC classifies discontinuous spermatic cord invasion as pM1 while stating that no subcategorization as pM1a or pM1b is specified for it, so the combination exists but cannot be encoded as M1a or M1b without guessing. The same source records that the National Comprehensive Cancer Network (NCCN) guidelines do not agree with the designation of discontinuous spermatic cord invasion as pM1 but instead recommend classification as pT3, and that the International Union Against Cancer (UICC) has not adopted the change to pM1 and still regards it as pT3.'
+  },
+  E: [
+    { k: 's', label: 'Serum markers (S)', req: true,
+      opts: ['SX', 'S0', 'S1', 'S2', 'S3'],
+      disp: { SX: 'SX - markers not available or not performed', S0: 'S0 - markers within normal limits',
+              S1: 'S1', S2: 'S2', S3: 'S3' },
+      defs: {
+        'SX': 'serum tumor markers not available or not performed',
+        'S0': 'markers within normal limits',
+        'S1': 'LDH < 1.5 x upper limit of normal, hCG < 5,000 mIU/mL and AFP < 1000 ng/mL',
+        'S2': 'LDH 1.5 - 10 x upper limit of normal or hCG 5,000 - 50,000 mIU/mL or AFP 1,000 - 10,000 ng/mL',
+        'S3': 'LDH > 10 x upper limit of normal or hCG > 50,000 mIU/mL or AFP > 10,000 ng/mL'
+      },
+      notes: 'Serum markers (AFP, hCG, LDH). The published stage table uses SX, S0, S1 - 3, S0 - 1, S2, S3 and S0 - 3; the range forms are written out here as explicit option lists because the extra-axis matcher in this engine splits a list on commas and semicolons but does not read a numeric range, so a row written "S1 - 3" would match nothing. Germ cell tumors are not graded, so there is no grade axis on this site.' }
+  ],
+  noStage: function (inp) {
+    var s = (inp.E || {}).s;
+    if (inp.N === 'NX') {
+      return 'The published AJCC 8 testicular stage table never uses NX: every row names only N0, N1, N2 or N3, so no stage group can be assigned when the regional lymph nodes cannot be assessed. This is a gap in the published table, not a row missing from this file. NX is offered as a category because the source defines it, but the table gives it no place.';
+    }
+    if (inp.T === 'T0') {
+      return 'The published AJCC 8 testicular stage table contains no row for T0 at any N or M, so no stage group can be assigned. Stage 0 in this table is written for pTis alone and is not a general "no invasive tumour" row, so T0 is not folded into it. This is a gap in the published table.';
+    }
+    if (inp.T === 'Tis') {
+      if (inp.M === 'M0') {
+        if (inp.N !== 'N0') return 'The published table places pTis in Stage 0 only as "pTis N0 M0 S0". It pairs pTis with N0 and M0 alone, and gives pTis no place alongside N1, N2 or N3, so an in-situ lesion with regional nodal metastasis has no stage group in the published table. This is a gap in the published table.';
+        if (s !== 'S0') return 'The published table places pTis in Stage 0 only as "pTis N0 M0 S0", so pTis with serum markers ' + (s || 'not selected') + ' is not assigned a stage group. The source does not say how an in-situ lesion with elevated markers should be grouped, and this file does not guess. This is a gap in the published table.';
+      }
+      return 'The published AJCC 8 testicular stage table restricts pTis to the single Stage 0 row "pTis N0 M0 S0". Every Stage I to III row is written for pT1 - 4 with or without TX, so pTis with distant metastasis has no stage group in the published table. This is a gap in the published table.';
+    }
+    if (inp.T === 'TX') {
+      if (inp.M === 'M0' && inp.N === 'N0' && (s === 'SX' || s === 'S0')) {
+        return 'The published table writes Stage I as "pT1 - 4 N0 M0 SX" and Stage IS as "pT1 - 4,X N0 M0 S1 - 3". The second form includes TX, but the first does not, so TX with N0 and M0 is assigned a stage group only when the serum markers are S1, S2 or S3. With markers not performed (SX) or within normal limits (S0) the primary tumour cannot be assessed and the published table has no row for it. This is a gap in the published table.';
+      }
+      return null;
+    }
+    if (inp.M === 'M1') {
+      return 'AJCC classifies discontinuous spermatic cord invasion as pM1 but states that no subcategorization as pM1a or pM1b is specified for it, and the published Stage III row that would carry a bare M1 is written for SX only. A bare M1 with serum markers ' + (s || 'not selected') + ' therefore has no stage group in the published table. Enter M1a or M1b where the subcategory is known, or consult the source. This is a gap in the published table.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'testis_tnm', label: 'Table. AJCC 8 Testicular Cancer Stage Groups', rows: [
+      { g: '0', T: 'Tis', N: 'N0', M: 'M0', E: { s: 'S0' } },
+      { g: 'I', T: 'T1-4', N: 'N0', M: 'M0', E: { s: 'SX' } },
+      { g: 'IA', T: 'T1', N: 'N0', M: 'M0', E: { s: 'S0' } },
+      { g: 'IB', T: 'T2-4', N: 'N0', M: 'M0', E: { s: 'S0' } },
+      { g: 'IS', T: 'T1-4,TX', N: 'N0', M: 'M0', E: { s: 'S1,S2,S3' } },
+      { g: 'II', T: 'T1-4,TX', N: 'N1-3', M: 'M0', E: { s: 'SX' } },
+      { g: 'IIA', T: 'T1-4,TX', N: 'N1', M: 'M0', E: { s: 'S0,S1' } },
+      { g: 'IIB', T: 'T1-4,TX', N: 'N2', M: 'M0', E: { s: 'S0,S1' } },
+      { g: 'IIC', T: 'T1-4,TX', N: 'N3', M: 'M0', E: { s: 'S0,S1' } },
+      { g: 'III', T: 'T1-4,TX', N: 'N0-3', M: 'M1', E: { s: 'SX' } },
+      { g: 'IIIA', T: 'T1-4,TX', N: 'N0-3', M: 'M1a', E: { s: 'S0,S1' } },
+      { g: 'IIIB', T: 'T1-4,TX', N: 'N1-3', M: 'M0', E: { s: 'S2' } },
+      { g: 'IIIB', T: 'T1-4,TX', N: 'N0-3', M: 'M1a', E: { s: 'S2' } },
+      { g: 'IIIC', T: 'T1-4,TX', N: 'N1-3', M: 'M0', E: { s: 'S3' } },
+      { g: 'IIIC', T: 'T1-4,TX', N: 'N0-3', M: 'M1a', E: { s: 'S3' } },
+      { g: 'IIIC', T: 'T1-4,TX', N: 'N0-3', M: 'M1b', E: { s: 'S0,S1,S2,S3' } }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'PathologyOutlines.com/topic/testisstaging.html (Zynger DL, author update 2 May 2022, staff update 1 June 2023) - stage composition and category wording',
+    'C140225  Testicular Cancer by AJCC v8 Stage (NCI Thesaurus EVS) - coarse stage definitions only, see notes',
+    'C140186  Testicular Cancer TNM Finding v8 (NCI Thesaurus EVS) - no child definitions published under this root'
+  ],
+  notes: 'STAGE COMPOSITION IS TAKEN FROM PATHOLOGY OUTLINES, NOT FROM EVS, BECAUSE EVS PUBLISHES A COARSER AND OLDER VERSION OF THE SAME TABLE. EVS C140323-C140326 gives Stage I (T1 N0 M0), Stage II (T2 N0 M0), Stage III ((T1 N1 M0)(T2 N1 M0)(T3 N0 M0)(T3 N1 M0)) and Stage IV ((T4 any N M0)(any T any N M1)) on a T1/T2/T3 axis defined only as 7 cm or less, more than 7 cm, and extension into major veins or perinephric tissues. That is the pre-AJCC-8 size-and-extension axis: it carries no T1a/T1b, T2a/T2b or T3a/T3b/T3c subdivision, which is the single most important change in AJCC 8 for this site, and it cannot distinguish a 4 cm from a 7 cm tumour. Pathology Outlines publishes the AJCC 8 axis in full - T1a, T1b, T2a, T2b, T3a, T3b, T3c, T4 - with the Stage I to IV groups I (T1a-1b N0 M0), II (T2a-2b N0 M0), III (T1a-3c N1 M0 and T3a-3c NX-0 M0) and IV (T4 any N M0, any T any N M1). The finer table is used because it is the AJCC 8 table and it is a strict superset of the EVS one. The EVS root C140274 publishes no TNM child definitions at all, so the category wording necessarily comes from Pathology Outlines. GRADE IS RECORDED BUT NOT STAGED. Both free sources publish WHO/ISUP grade - Pathology Outlines gives GX and G1 to G4 in a separate section, and the reference it cites is "Pathologic TNM staging of renal cell carcinoma (AJCC 8th edition)" - but the published stage table itself has NO grade column on either source, so the grade-based prognostic stage groups that AJCC 8 defines for renal cell carcinoma cannot be reproduced here and are deliberately not invented. The site is therefore an ANATOMIC stage table. FOUR ROW SPECS ARE WRITTEN AS EXPLICIT LISTS OR PAIRS BECAUSE THE ENGINE RANGE READER WOULD MISREAD THEM. The printed "T1a-1b" matches nothing at all under the lettered-range rule because both bounds carry a sub-letter, and "T1a-3c" silently drops T3a and T3b because the closing bound pins the sub-letter; "T3a-3c" likewise matches nothing, and "NX-0" is not a form the reader accepts at all. The lists used here denote exactly the same category sets the printed ranges do. NX IS ADMITTED TO STAGE ONLY WHERE THE TABLE PUTS IT: the printed "T3a-3c NX-0 M0" admits it alongside T3a, T3b and T3c, and the Stage IV row "T4, any N, M0" admits it alongside T4, so NX with T1a, T1b, T2a or T2b and M0 is refused rather than guessed. TX and T0 have no row anywhere in the table and are refused with that stated. The yp and r prefixes are reused BY CONVENTION and are labelled as such, because the source publishes a single table for all assessment bases. T and N affixes are pinned to p because the source publishes pathologic wording only.'
+};
+
+SITES.renalCellCancer = {
+  id: 'renalCellCancer', name: 'Renal cell cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All carcinomas of the renal cortex are covered by this staging system. These topics are not covered: urothelial carcinoma, lymphoma, sarcoma and Wilms tumor. THIS IS THE ANATOMIC STAGE TABLE. It is not the grade-based AJCC 8 prognostic stage group, which cannot be reproduced from the published free sources - see the notes.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'T1a', 'T1b', 'T2a', 'T2b', 'T3a', 'T3b', 'T3c', 'T4'],
+    def: {
+      'TX': 'primary tumor cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'T1a': '<= 4 cm, limited to the kidney',
+      'T1b': '> 4 cm and <= 7 cm, limited to the kidney',
+      'T2a': '> 7 cm and <= 10 cm, limited to the kidney',
+      'T2b': '> 10 cm, limited to the kidney',
+      'T3a': 'invades renal vein / branches, perirenal fat, renal sinus fat or pelvicaliceal system',
+      'T3b': 'extends into vena cava below the diaphragm',
+      'T3c': 'extends into vena cava above the diaphragm or invades vena cava wall',
+      'T4': 'invades beyond Gerota fascia, including direct extension to adrenal gland'
+    },
+    notes: 'The size subdivisions T1a/T1b at 4 cm and T2a/T2b at 10 cm are the AJCC 8 change for this site and are the reason this site is not built on the coarser EVS axis. There is no bare T1, T2 or T3 category here: the source publishes only the lettered subdivisions, so none of them can be selected.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1'],
+    def: {
+      'NX': 'cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'regional lymph node metastasis'
+    },
+    notes: 'Regional lymph nodes = hilar, caval, aortic. There is no N2 category in this table: the source defines only N0 and N1.'
+  },
+  M: {
+    cats: ['M0', 'M1'],
+    def: {
+      'M0': 'no distant metastasis',
+      'M1': 'distant metastasis, including noncontiguous adrenal involvement'
+    },
+    notes: 'M0 is not given a definition on the Pathology Outlines page although the stage table references it, so its wording is taken from the EVS stage definition "M0: No distant metastasis." There is no M1a/M1b subdivision and no MX in this table.'
+  },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3', 'G4'], inStage: false,
+    def: {
+      'GX': 'cannot be assessed',
+      'G1': 'nucleoli inconspicuous or absent and basophilic at 40x objective',
+      'G2': 'nucleoli conspicuous and eosinophilic at 40x but not prominent at 10x objective',
+      'G3': 'nucleoli conspicuous and eosinophilic at 10x objective',
+      'G4': 'marked nuclear pleomorphism, multinucleated tumor giant cells, rhabdoid differentiation or sarcomatoid differentiation'
+    },
+    notes: 'Grade is recorded by Pathology Outlines as WHO / ISUP grade but does NOT enter the stage group, so it is excluded from staging here. This is deliberate and is a limitation of the published sources, not a simplification: AJCC 8 defines grade-based prognostic stage groups for renal cell carcinoma, but the stage table published on the source page has no grade column at all, so those groups cannot be reproduced from it and are not invented. A case staged here is an ANATOMIC stage only.'
+  },
+  noStage: function (inp) {
+    if (inp.M !== 'M0') return null;
+    if (inp.T === 'TX') return 'The published AJCC 8 renal cell table contains no row for TX with M0, so no stage group can be assigned. The primary tumour cannot be assessed; TX reaches Stage IV only through the published "any T, any N, M1" row.';
+    if (inp.T === 'T0') return 'The published AJCC 8 renal cell table contains no row for T0 with M0, so no stage group can be assigned. There is no primary tumour to stage.';
+    if (inp.N === 'NX' && (inp.T === 'T1a' || inp.T === 'T1b' || inp.T === 'T2a' || inp.T === 'T2b')) {
+      return 'The published table admits NX in only two places: the Stage III row written "T3a-3c NX-0 M0", and the Stage IV row written "T4, any N, M0". It defines no stage group for ' + inp.T + ' with NX and M0, so the regional lymph nodes cannot be assessed at this T. This is a gap in the published table, not a row missing from this file.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'renalCellCancer_tnm', label: 'Table. AJCC 8 Renal Cell Cancer Stage Groups (anatomic, no grade column)', rows: [
+      { g: 'I', T: 'T1a,T1b', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2a,T2b', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T1a,T1b,T2a,T2b,T3a,T3b,T3c', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T3a,T3b,T3c', N: 'NX,N0', M: 'M0' },
+      { g: 'IV', T: 'T4', N: 'Any N', M: 'M0' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'PathologyOutlines.com/topic/kidneytumormalignantstaging.html (Zynger D, author update 1 January 2020, staff update 2 March 2022) - stage composition and category wording',
+    'C140322  Renal Cell Cancer by AJCC v8 Stage (NCI Thesaurus EVS) - coarser stage definitions, see notes',
+    'C140274  Kidney Cancer TNM Finding v8 (NCI Thesaurus EVS) - no child definitions published under this root'
+  ],
+  notes: 'STAGE COMPOSITION IS TAKEN FROM PATHOLOGY OUTLINES, NOT FROM EVS, BECAUSE EVS PUBLISHES A COARSER AND OLDER VERSION OF THE SAME TABLE. EVS C140323-C140326 gives Stage I (T1 N0 M0), Stage II (T2 N0 M0), Stage III ((T1 N1 M0)(T2 N1 M0)(T3 N0 M0)(T3 N1 M0)) and Stage IV ((T4 any N M0)(any T any N M1)) on a T1/T2/T3 axis defined only as 7 cm or less, more than 7 cm, and extension into major veins or perinephric tissues. That is the pre-AJCC-8 size-and-extension axis: it has no T1a/T1b, T2a/T2b or T3a/T3b/T3c subdivision, so it cannot separate a 4 cm from a 7 cm tumour, which is the central AJCC 8 change for this site. Pathology Outlines publishes the AJCC 8 axis in full - T1a, T1b, T2a, T2b, T3a, T3b, T3c, T4 - with Stage I (T1a-1b N0 M0), Stage II (T2a-2b N0 M0), Stage III (T1a-3c N1 M0 and T3a-3c NX-0 M0) and Stage IV (T4 any N M0, any T any N M1). The finer table is used because it is the AJCC 8 table and it is a strict superset of the EVS one. The EVS root C140274 publishes no TNM child definitions at all, so the category wording necessarily comes from Pathology Outlines. THIS SITE IS ANATOMIC ONLY, NOT THE AJCC 8 GRADE-BASED PROGNOSTIC GROUP. Both free sources publish WHO/ISUP grade (Pathology Outlines gives GX and G1 to G4, under a section titled "Histologic grade (G)", and cites "Pathologic TNM staging of renal cell carcinoma (AJCC 8th edition)"), but the stage table published on the source page has NO grade column, so the grade-based prognostic stage groups cannot be reproduced from it. They are deliberately not invented here. Grade is offered as a recorded value and excluded from staging, and the stage table heading on the source page is "AJCC prognostic stage groups" even though it carries no grade - that mismatch is the source\'s, and is reported rather than smoothed over. FOUR ROW SPECS ARE WRITTEN AS EXPLICIT LISTS OR PAIRS BECAUSE THE ENGINE RANGE READER WOULD MISREAD THE PRINTED FORMS. The printed "T1a-1b" matches nothing at all under the lettered-range rule, because both bounds carry a sub-letter and the reader treats a sub-letter on each bound as two separate exact values; "T3a-3c" fails the same way. "T1a-3c" is worse than empty: the reader matches the opening bound exactly and pins the closing sub-letter, so it silently DROPS T3a and T3b and matches only T1a, T1b and T3c. "NX-0" is not a form the reader accepts at all, since the range needs a number before the hyphen. The lists used here denote exactly the same category sets the printed forms do, which is the same reason the bladder T2a/T2b and T3a/T3b/T4a rows are written as lists. NX IS ADMITTED TO STAGE ONLY WHERE THE TABLE PUTS IT: the printed "T3a-3c NX-0 M0" admits it alongside T3a, T3b and T3c, and the Stage IV row "T4, any N, M0" admits it alongside T4, so NX with T1a, T1b, T2a or T2b and M0 is refused rather than guessed. TX and T0 have no row anywhere in the table and are refused with that stated. M0 wording is taken from EVS because the Pathology Outlines page does not define it. The yp and r prefixes are reused BY CONVENTION and are labelled as such, because the source publishes a single table for all assessment bases. T and N affixes are pinned to p because the source publishes pathologic wording only. NOTE FOR COMPARISON: the urothelial sites renalPelvis and ureter are separate sites and are not related to this one.'
+};
+
+/* Prostate publishes TWO stage tables. The pathologic one comes from Pathology
+   Outlines; the clinical one has to come from EVS, because Pathology Outlines
+   publishes no clinical stage table for this site at all. The row arrays are held
+   in variables so the pathologic table can be shared by the p, yp and r bases
+   without being transcribed three times. */
+var PROSTATE_C_ROWS = [
+  { g: 'I', T: 'T1a,T1b,T1c,T2a', N: 'N0', M: 'M0', E: { psa: 'PSA < 10', gg: 'GG1' } },
+  { g: 'IIA', T: 'T1a,T1b,T1c,T2a', N: 'N0', M: 'M0', E: { psa: 'PSA >= 10 - < 20', gg: 'GG1' } },
+  { g: 'IIA', T: 'T2b,T2c', N: 'N0', M: 'M0', E: { psa: 'PSA < 10,PSA >= 10 - < 20', gg: 'GG1' } },
+  { g: 'IIB', T: 'T1a,T1b,T1c,T2a,T2b,T2c', N: 'N0', M: 'M0', E: { psa: 'PSA < 10,PSA >= 10 - < 20', gg: 'GG2' } },
+  { g: 'IIC', T: 'T1a,T1b,T1c,T2a,T2b,T2c', N: 'N0', M: 'M0', E: { psa: 'PSA < 10,PSA >= 10 - < 20', gg: 'GG3' } },
+  { g: 'IIC', T: 'T1a,T1b,T1c,T2a,T2b,T2c', N: 'N0', M: 'M0', E: { psa: 'PSA < 10,PSA >= 10 - < 20', gg: 'GG4' } },
+  { g: 'IIIA', T: 'T1a,T1b,T1c,T2a,T2b,T2c', N: 'N0', M: 'M0', E: { psa: 'PSA >= 20', gg: 'GG1,GG2,GG3,GG4' } },
+  { g: 'IIIB', T: 'T3,T4', N: 'N0', M: 'M0', E: { gg: 'GG1,GG2,GG3,GG4' } },
+  { g: 'IIIC', T: 'Any T', N: 'N0', M: 'M0', E: { gg: 'GG5' } },
+  { g: 'IVA', T: 'Any T', N: 'N1', M: 'M0' },
+  { g: 'IVB', T: 'Any T', N: 'N0,N1', M: 'M1' }
+];
+
+var PROSTATE_P_ROWS = [
+  { g: 'I', T: 'T2', N: 'N0', M: 'M0', E: { psa: 'PSA < 10', gg: 'GG1' } },
+  { g: 'IIA', T: 'T2', N: 'N0', M: 'M0', E: { psa: 'PSA >= 10 - < 20', gg: 'GG1' } },
+  { g: 'IIB', T: 'T2', N: 'N0', M: 'M0', E: { psa: 'PSA < 10,PSA >= 10 - < 20', gg: 'GG2' } },
+  { g: 'IIC', T: 'T2', N: 'N0', M: 'M0', E: { psa: 'PSA < 10,PSA >= 10 - < 20', gg: 'GG3,GG4' } },
+  { g: 'IIIA', T: 'T2', N: 'N0', M: 'M0', E: { psa: 'PSA >= 20', gg: 'GG1,GG2,GG3,GG4' } },
+  { g: 'IIIB', T: 'T3-4', N: 'N0', M: 'M0', E: { gg: 'GG1,GG2,GG3,GG4' } },
+  { g: 'IIIC', T: 'T2-4', N: 'N0', M: 'M0', E: { gg: 'GG5' } },
+  { g: 'IVA', T: 'T2-4', N: 'N1', M: 'M0' },
+  { g: 'IVB', T: 'T2-4', N: 'N0-N1', M: 'M1' }
+];
+
+SITES.prostate = {
+  id: 'prostate', name: 'Prostate cancer', group: 'Genitourinary',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'All prostate carcinomas are covered by this staging system. These topics are not covered: sarcoma, urothelial carcinoma (refer to male urethra staging for carcinoma of the prostatic urethra). TWO STAGE TABLES ARE PUBLISHED AND BOTH ARE BUILT HERE: a pathologic (pTNM) table and a clinical (cTNM) table. They are kept apart because the T categories themselves differ - there is no pT1, and the clinical categories subdivide T1 and T2 where the pathologic ones do not.',
+  T: {
+    catsByMode: {
+      c: ['T1a', 'T1b', 'T1c', 'T2a', 'T2b', 'T2c', 'T3', 'T4'],
+      p: ['T2', 'T3a', 'T3b', 'T4']
+    },
+    defByMode: {
+      c: {
+        'T1a': 'clinically inapparent, nonpalpable, incidental tumor in 5% or less of tissue',
+        'T1b': 'clinically inapparent, nonpalpable, incidental tumor in more than 5% of tissue',
+        'T1c': 'clinically inapparent, nonpalpable tumor in a prostate needle biopsy, found in one or both sides, but not palpable',
+        'T2a': 'tumor involves one-half of one side or less',
+        'T2b': 'tumor involves more than one-half of one side but not both sides',
+        'T2c': 'tumor involves both sides',
+        'T3': 'extraprostatic tumor that is not fixed or does not invade adjacent structures',
+        'T4': 'tumor is fixed or invades adjacent structures other than seminal vesicles such as external sphincter, rectum, bladder, levator muscles, and/or pelvic wall'
+      },
+      p: {
+        'T2': 'organ confined',
+        'T3a': 'extraprostatic extension or microscopic invasion of bladder neck',
+        'T3b': 'seminal vesicle muscle invasion',
+        'T4': 'fixed tumor or invasion of structures such as external sphincter, rectum, bladder, levator muscles or pelvic wall'
+      }
+    },
+    notes: 'EACH BASIS SHOWS ITS OWN WORDING, AND THE TWO SOURCES DO NOT COVER THE SAME CATEGORIES. The cT definitions for T2a, T2b, T2c, T3 and T4 are the EVS ones, and Pathology Outlines publishes the same wording there, so no choice arises. The cT1a, cT1b and cT1c definitions are the PATHOLOGY OUTLINES ones, because that is the only source on record that defines all three: its note reads "clinically inapparent, nonpalpable, incidental tumor in 5% or less of tissue defined as cT1a, clinically inapparent, nonpalpable, incidental tumor in > 5% defined as cT1b and clinically inapparent, nonpalpable tumor in a prostate needle biopsy defined as cT1c". EVS defines the same three categories but phrases them as an incidental histologic finding, and attaches "found in one or both sides" to cT1c; that qualifier is carried into the cT1c text here. The pT definitions are the Pathology Outlines ones throughout. THERE IS NO pT1. The pathologic axis starts at pT2, which is why the pathologic table cannot offer cT1a, cT1b or cT1c and the clinical table cannot offer pT2. The pathologic axis also splits T3 into pT3a and pT3b, a subdivision the clinical wording does not make. Extraprostatic extension is usually dichotomized as focal (< 1 high power field in 1 - 2 slides) versus nonfocal / established (> 1 high power field in 1 - 2 slides). Microscopic invasion of bladder neck means presence of tumor in thick muscle usually with no adjacent nonneoplastic glands. Seminal vesicle invasion means invasion of the extraprostatic seminal vesicle muscular wall.'
+  },
+  N: {
+    catsByMode: {
+      c: ['NX', 'N0', 'N1'],
+      p: ['NX', 'N0', 'N1']
+    },
+    defByMode: {
+      c: {
+        'NX': 'cannot be assessed',
+        'N0': 'no positive regional nodes',
+        'N1': 'metastasis in regional node(s)'
+      },
+      p: {
+        'NX': 'cannot be assessed',
+        'N0': 'no regional lymph node metastasis',
+        'N1': 'regional lymph node metastasis'
+      }
+    },
+    notes: 'Regional lymph nodes include periprostatic, pelvic, hypogastric, obturator, internal iliac, external iliac, sacral. Nonregional lymph nodes include aortic, common iliac, deep / superficial inguinal, retroperitoneal. The categories are the same on both bases, but the wording differs between the two sources, so each basis shows its own text.'
+  },
+  M: {
+    cats: ['M0', 'M1a', 'M1b', 'M1c'],
+    def: {
+      'M0': 'without evidence of distant metastasis',
+      'M1a': 'metastasis in nonregional lymph node',
+      'M1b': 'metastasis in bone',
+      'M1c': 'metastasis in other distant site'
+    },
+    notes: 'M0 is not given a definition on the Pathology Outlines page although the stage table references it, so its wording is taken from the EVS stage definition "M0: Prostate cancer without evidence of distant metastasis." There is no bare M1 category: the three M1 subdivisions are the published ones, and the bare parent M1 in the source stage table reaches all three of them.'
+  },
+  E: [
+    { k: 'psa', label: 'Pretreatment serum PSA', req: true,
+      opts: ['PSA < 10', 'PSA >= 10 - < 20', 'PSA >= 20'],
+      defs: {
+        'PSA < 10': 'Pretreatment PSA below 10. Published wording: "PSA < 10".',
+        'PSA >= 10 - < 20': 'Pretreatment PSA 10 or more and less than 20. Published wording: "PSA >= 10 - < 20".',
+        'PSA >= 20': 'Pretreatment PSA 20 or more. Published wording: "PSA >= 20".'
+      },
+      notes: 'Three bins are offered, using the source wording as the value labels. The published table also prints "PSA < 20" in Stage IIB and Stage IIC and "Any PSA" in Stage IIIB onward; "PSA < 20" is not a fourth bin but the first two of these three read together, and "Any PSA" leaves the axis unconstrained, so neither is offered as a value. No unit is stated anywhere in the published stage table, so none is asserted here. The published note "If the PSA or grade group / Gleason score is not available, the stage should be based on the available data" is NOT implemented: this app does not stage a case with an unknown PSA, and such a case is refused instead, because choosing which rows to apply would not be reproducible.' },
+    { k: 'gg', label: 'Histologic grade group (Gleason)', req: true,
+      opts: ['GG1', 'GG2', 'GG3', 'GG4', 'GG5'],
+      defs: {
+        'GG1': 'Grade group 1. Gleason score <= 6. Gleason pattern <= 3+3.',
+        'GG2': 'Grade group 2. Gleason score 7. Gleason pattern 3+4.',
+        'GG3': 'Grade group 3. Gleason score 7. Gleason pattern 4+3.',
+        'GG4': 'Grade group 4. Gleason score 8. Gleason pattern 4+4, 3+5, 5+3.',
+        'GG5': 'Grade group 5. Gleason score 9 - 10. Gleason pattern 4+5, 5+4, 5+5.'
+      },
+      notes: 'THE GRADE GROUP DEFINITIONS ARE THE PATHOLOGY OUTLINES ONES, AND THEY ARE SHARED BY BOTH TABLES BECAUSE THE TWO SOURCES DO NOT QUITE AGREE. Published by Pathology Outlines as a three-column table under the heading "Histologic grade group (G)". EVS defines the same five groups but prints Grade Group 4 as Gleason Pattern 4+4 only, whereas Pathology Outlines also lists 3+5 and 5+3; the fuller set is used here and the difference is recorded rather than dropped. The source uses "Grade group" terminology exclusively and publishes no standalone G1 to G5 label set, so the values here are named GG1 to GG5. Grade group is collected as an extra axis rather than as the G axis because the G axis prints a stage affix such as pG1, which would misname a grade group, and because the source expresses it as a grade group rather than a grade.' }
+  ],
+  noStage: function (inp) {
+    if (inp.N === 'NX') {
+      return 'Neither published prostate stage table uses NX: the nodal columns name only N0, N1 and N0-1, so no stage group can be assigned when the regional lymph nodes cannot be assessed. NX is offered as a category because the source defines it, but the published tables give it no place. This is a gap in the published tables, not a row missing from this file.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'prostate_ctnm', mode: 'c', label: 'Table. AJCC 8 Prostate Cancer Stage Groups (clinical cTNM)', rows: PROSTATE_C_ROWS },
+    { id: 'prostate_ptnm', mode: ['p', 'yp', 'r'], label: 'Table. AJCC 8 Prostate Cancer Stage Groups (pathologic pTNM)', rows: PROSTATE_P_ROWS }
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'PathologyOutlines.com/topic/prostatestaging.html (Zynger D, author update 8 February 2023, staff update 21 September 2026) - pathologic stage table, category wording, grade groups',
+    'C140163  Prostate Cancer by AJCC v8 Stage (NCI Thesaurus EVS) - clinical stage table and cT wording',
+    'C140119  Prostate Cancer TNM Finding v8 (NCI Thesaurus EVS) - no child definitions published under this root'
+  ],
+  notes: 'TWO TABLES ARE BUILT, AND THEY COME FROM DIFFERENT SOURCES. The pathologic table is the Pathology Outlines table, whose own heading is "AJCC prognostic stage groups (utilizing pT categorization)" and whose rows are pT2, pT3-4 and pT2-4 throughout. The clinical table is taken from EVS C140164-C140173, because Pathology Outlines publishes NO clinical stage table for prostate at all: the only cT strings on that page are cT1a, cT1b and cT1c inside a single explanatory note, and there is no cT2, cT3, cT4, cN or cM value anywhere on it. The clinical rows therefore rest on EVS alone, which is stated here because it is a single-source table. STAGE IVB IS BUILT FROM THE PATHOLOGY OUTLINES ROW, AND THE DISAGREEMENT WITH EVS IS RECORDED. The two sources differ: EVS prints "IVB: Any T, N0, M1" while Pathology Outlines prints "Stage group IVB: pT2 - 4 N0 - 1 M1". Followed literally, the EVS wording leaves N1 with M1 unassigned anywhere in the table, because its Stage IVA row is "Any T, N1, M0" and requires M0. The Pathology Outlines row is a strict superset and covers the same N0 M1 case as well, so it is the one built here: clinical IVB is any cT with N0 or N1 and M1, and pathologic IVB is pT2-4 with N0 or N1 and M1. The bare parent M1 in that row reaches M1a, M1b and M1c. The narrower EVS reading is not silently discarded - it is recorded here as the disagreement it is. THE TWO TABLES DIFFER WHERE THE SOURCES DIFFER, NOT BY CONVENIENCE. The clinical table uses cT1a, cT1b, cT1c, cT2a, cT2b, cT2c, cT3 and cT4 because EVS publishes those; the pathologic table uses pT2, pT3a, pT3b and pT4 because Pathology Outlines publishes those. The printed bare forms are expanded to the concrete categories they denote: EVS "cT1a-c" becomes cT1a, cT1b and cT1c, EVS "cT2b-c" becomes cT2b and cT2c, and EVS "T1-2" in Stage IIB, IIC and IIIA becomes all six clinical T1 and T2 categories. In the pathologic table "pT3 - 4" and "pT2 - 4" are kept as ranges, which is safe here because that axis has no sub-letter on a boundary. THE PSA COLUMN IS THREE BINS, NOT FOUR. The source prints "PSA < 10", "PSA >= 10 - < 20", "PSA < 20", "PSA >= 20" and "Any PSA". Stage IIB and Stage IIC print "PSA < 20", which is the first two bins read together and is written as a two-value list in those rows; "Any PSA" leaves the axis unconstrained, so the rows that print it carry no PSA value at all. The published note permitting staging from available data when PSA or grade group is unknown is deliberately NOT implemented, and a case with no PSA or no grade group is refused rather than resolved by choosing rows. GRADE GROUP 5 IS EXCLUDED FROM THE GRADE 1-4 ROWS RATHER THAN LEFT IMPLICIT. The source prints Stage IIIA and Stage IIIB as "Grade group 1 - 4" and Stage IIIC as "Grade group 5", so those rows carry explicit value lists. Had Grade group 5 been left unconstrained in the IIIB row it would have collided with the IIIC row and produced two answers for the same case. NX HAS NO ROW ON EITHER TABLE and is refused with that stated. The yp and r bases reuse the PATHOLOGIC table BY CONVENTION, since the source publishes no post-neoadjuvant or recurrent table; the yp and r affixes therefore use the pathologic T and N wording. No fixedPrefix is set here, unlike the pathologic-only GU sites, because this site genuinely has both a clinical and a pathologic T and N wording and the affix must follow the basis.'
+};
+
+/* Bone and Soft Tissue Sarcoma chapter.
+   Category wording and the bone stage table come from Pathology Outlines; the
+   soft tissue stage tables come from NCI Thesaurus EVS, because Pathology
+   Outlines publishes NO stage-grouping section on the soft tissue staging page
+   at all - its table of contents runs Primary tumor / Regional lymph nodes /
+   Distant metastasis / Prefixes / Histologic grade and stops there.
+   GRADE IS PART OF THE STAGE TABLE in this chapter, unlike renal cell carcinoma.
+   It is therefore a real G axis constrained by the rows themselves, not an
+   inStage:false extra and not an E axis.
+   INCLUDED: boneSarcoma, softTissueSarcomaTrunkExtremities,
+   softTissueSarcomaRetroperitoneum.
+   NOT INCLUDED, AND NOT BECAUSE IT WAS FORGOTTEN:
+     - soft tissue sarcoma of the head and neck. EVS C136655 states verbatim
+       that it "needs data collection before defining a stage grouping for head
+       and neck sarcomas" and no such concept exists anywhere in the stage
+       hierarchy. There is no third table to build.
+     - bone sarcoma of the spine and of the pelvis. Both sources publish T
+       categories for them and both state in terms that no stage grouping
+       exists. The T scales are reproduced in the boneSarcoma notes.
+     - soft tissue sarcoma of the abdomen and thoracic visceral organs, and of
+       the orbit. Pathology Outlines publishes a T scale for the abdomen and
+       thoracic visceral organs but no stage grouping exists for it either. */
+
+/* ------------------------------------------------------------- bone sarcoma
+   The single published stage table is qualified "For appendicular skeleton,
+   trunk, skull and facial bones". The printed T cell "T2 - 3" is written out as
+   an explicit list rather than a range. */
+var BONE_SARCOMA_ROWS = [
+  { g: 'IA', T: 'T1', N: 'N0', M: 'M0', G: 'G1,GX' },
+  { g: 'IB', T: 'T2,T3', N: 'N0', M: 'M0', G: 'G1,GX' },
+  { g: 'IIA', T: 'T1', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IIB', T: 'T2', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'III', T: 'T3', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IVA', T: 'Any T', N: 'N0', M: 'M1a', G: 'Any G' },
+  { g: 'IVB', T: 'Any T', N: 'N1', M: 'Any M', G: 'Any G' },
+  { g: 'IVB', T: 'Any T', N: 'Any N', M: 'M1b', G: 'Any G' }
+];
+
+SITES.boneSarcoma = {
+  id: 'boneSarcoma', name: 'Bone sarcoma', group: 'Bone & soft tissue sarcoma',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'Tumors arising in bone (including osteosarcoma, chondrosarcoma, Ewing sarcoma, spindle cell sarcoma, hemangioendothelioma, angiosarcoma, fibrosarcoma / myofibrosarcoma, chordoma and adamantinoma) are covered by this staging system. Hematolymphoid tumors (primary malignant lymphoma, multiple myeloma) are not covered by this staging system. THE STAGE TABLE PUBLISHED FOR THIS SITE IS SCOPED TO ONE REGION ONLY. The source prints the qualifier "For appendicular skeleton, trunk, skull and facial bones" directly above the table, and both sources state that there is no stage grouping for the spine or the pelvis, so only the T scale offered here is the one those stage groups apply to.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'T1', 'T2', 'T3'],
+    def: {
+      'TX': 'primary tumor cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'T1': 'tumor <= 8 cm in greatest dimension',
+      'T2': 'tumor > 8 cm in greatest dimension',
+      'T3': 'discontinuous tumors in the primary bone site'
+    },
+    notes: 'This is the T scale for the appendicular skeleton, trunk, skull and facial bones - the only region with a published stage grouping. The 8 cm cut point is the AJCC 8 change for this site. The page publishes two further T scales that have NO stage grouping, recorded here so the omission is visible rather than silent. FOR SPINE: TX primary tumor cannot be assessed; T0 no evidence of primary tumor; T1 tumor confined to 1 vertebral segment or 2 adjacent vertebral segments; T2 tumor confined to 3 adjacent vertebral segments; T3 tumor confined to 4 or more adjacent vertebral segments or any nonadjacent vertebral segments; T4 extension into the spinal canal or great vessels, subdivided into T4a extension into the spinal canal and T4b evidence of gross vascular invasion or tumor thrombus in the great vessels. Spine segments include right body, left body, right pedicle, left pedicle and posterior element. FOR PELVIS: TX primary tumor cannot be assessed; T0 no evidence of primary tumor; T1 tumor confined to 1 pelvic segment with no extraosseous extension, subdivided into T1a tumor <= 8 cm in greatest dimension and T1b tumor > 8 cm in greatest dimension; then T2, T3 and T4 each similarly subdivided at 8 cm. Neither scale is selectable here because no stage grouping exists for either, so a case staged with them would have no group to land in. Note also that Pathology Outlines defines the pelvic T4a and T4b by SIZE, whereas the NCI Thesaurus defines them by ANATOMY (sacroiliac joint, external iliac vessels); the anatomic qualifiers are not published on the Pathology Outlines page.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1'],
+    def: {
+      'NX': 'regional lymph nodes cannot be assessed',
+      'N0': 'no regional lymph node metastases',
+      'N1': 'regional lymph node metastases'
+    },
+    notes: 'The plural wording of N0 and N1 is the Pathology Outlines wording and is reproduced exactly as printed; the NCI Thesaurus uses the singular forms for the same categories. Note the published caution: bone sarcomas very rarely involve lymph nodes and therefore NX can generally be assumed to represent N0 unless nodal involvement is evident clinically or pathologically. That is a clinical assumption for the reader to make, not a staging rule, so NX is offered as a category and then refused by the table, which prints no NX row.'
+  },
+  M: {
+    cats: ['M0', 'M1', 'M1a', 'M1b'],
+    def: {
+      'M0': 'no distant metastasis',
+      'M1': 'distant metastasis',
+      'M1a': 'lung',
+      'M1b': 'secondary bone or other distant sites (including distant lymph nodes)'
+    },
+    notes: 'M1 is published as a parent of M1a and M1b rather than as a category of its own, but it is offered here because the stage table prints "Any M" in the first IVB row, and the bare parent M1 reaches M1a and M1b. M1a and M1b are the only M1 subdivisions in this table; there is no M1c. A bare M1 with N0 is the one combination that cannot be resolved, because the group turns on the site of metastasis - M1a is Stage group IVA and M1b is Stage group IVB - and M1 alone does not say which; that case is refused with that reason instead of being guessed.'
+  },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3'],
+    def: {
+      'GX': 'grade cannot be assessed',
+      'G1': 'well differentiated, low grade',
+      'G2': 'moderately differentiated, high grade',
+      'G3': 'poorly differentiated, high grade'
+    },
+    notes: 'GRADE IS PART OF THE STAGE TABLE HERE, unlike renal cell carcinoma in this same app. Every printed row carries a G value: G1 and GX for Stage groups IA and IB, G2 and G3 for IIA, IIB and III, and any G for IVA and both IVB rows. The page heads this section "Histologic grade (G) (generally tumor specific)", so the G1 to G3 definitions above are the page own and are not interchangeable with the FNCLCC scores used for soft tissue sarcoma - the two sites must not borrow each other grade wording. The page cites the Cancer Centers Sarcoma Group (FNCLCC) grading system and gives the FNCLCC counts as G1: 2 or 3, G2: 4 or 5, G3: 6 to 8, but describes FNCLCC grade as based on 3 parameters: differentiation, mitotic activity and necrosis, which is the soft tissue scheme. The registry data collection variables on the page list grades as G1, G2, G3 and do not list GX, whereas the stage table prints G1, GX; the stage table is followed here.'
+  },
+  noStage: function (inp) {
+    if (inp.T === 'TX' || inp.T === 'T0') {
+      return 'The published bone stage table has no row for TX or T0 with N0 M0. Its N0 M0 rows are T1, T2 and T3 specific, while the rows that say "Any T" all require either M1a, N1 or M1b, so a TX or T0 tumour without distant or nodal disease has nowhere to go in the table. This is a gap in the published table, not a row missing from this file.';
+    }
+    if (inp.N === 'NX') {
+      return 'The published bone stage table has no row for NX. The printed N column names only N0 and N1. The source itself notes that NX can generally be assumed to represent N0 for this site, but that is a clinical assumption for the reader rather than a published stage row, so it is not applied here.';
+    }
+    if (inp.N === 'N0' && inp.M === 'M1') {
+      return 'The published bone stage table cannot resolve a bare M1 with N0, because the group depends on WHERE the metastasis is and M1 alone does not say. The table puts M1a (lung) in Stage group IVA and M1b (secondary bone or other distant sites) in Stage group IVB, and the only row that accepts any M without regard to site is the first IVB row, which requires N1. So N0 with M1 unspecified is Stage IVA if the metastasis is to the lung and Stage IVB if it is anywhere else. Select M1a or M1b to be staged, or N1 to be staged as IVB.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'bone_ajcc8', label: 'Table. AJCC 8 Bone Sarcoma Stage Groups (for appendicular skeleton, trunk, skull and facial bones)', rows: BONE_SARCOMA_ROWS }
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'PathologyOutlines.com/topic/bonestaging.html (Gonzalez RS, author update 7 April 2026, staff update 7 April 2026) - stage table, T/N/M category wording, grade',
+    'C136612  Bone Cancer by AJCC v8 Stage, synonym "Appendicular Skeleton, Trunk, Skull, and Facial Bones Cancer by AJCC v8 Stage" (NCI Thesaurus EVS) - stage rows, and the statement that there are no prognostic stage groupings for spine and pelvis'
+  ],
+  notes: 'THE STAGE TABLE IS SINGLE-REGION AND THAT IS THE SOURCE, NOT A LIMITATION OF THIS FILE. The published table carries the qualifier "For appendicular skeleton, trunk, skull and facial bones", and the NCI Thesaurus parent concept states verbatim: "There are no AJCC prognostic stage groupings for spine and pelvis. (from AJCC 8th Ed.)" Both the T scales for spine and for pelvis are reproduced in the T notes so the exclusion is visible, but neither is selectable, because a case staged on either scale would have no group to land in. THE PRINTED T CELL "T2 - 3" IS WRITTEN AS AN EXPLICIT LIST, T2,T3. The printed form is a bare numeric range; it happens to parse, but an explicit list cannot silently drop a category the way a lettered range such as T1a-3c does, so the list is used and the printed form recorded here. "ANY T" IS TAKEN LITERALLY, WHICH INCLUDES TX AND T0. The IVA and both IVB rows print "any T", and that is taken at face value, so TX or T0 with nodal or distant disease does receive Stage group IVA or IVB. The asymmetry is the source own: the N0 M0 rows name T1, T2 and T3 specifically, so TX and T0 with N0 M0 have no row at all. That case is refused with that reason rather than being rounded to the nearest group. THERE ARE TWO ROWS LABELLED IVB, WHICH IS HOW THE SOURCE PRINTS IT. One row is Any T, N1, Any M, Any G and the other is Any T, Any N, M1b, Any G. They overlap at N1 M1b and both name the same group, so no case is given two different answers. NOTE THAT M1b IS ALONE IN THE SECOND IVB ROW while M1a sits in IVA, so lung-only metastasis is Stage IVA and every other distant site is Stage IVB - which is the reverse of the more familiar pattern and is easy to misremember. The yp and r bases reuse the pathologic table by convention; the source publishes no post-neoadjuvant or recurrent bone table, and it does define the prefixes y (preoperative radiotherapy or chemotherapy) and r (recurrent tumor stage).'
+};
+
+/* --------------------------------------------------- soft tissue sarcoma
+   The two published tables share one T/N/M/G set and differ in exactly one
+   consequential place: Any T, N1, M0 is Stage IV in the trunk and extremities
+   table but Stage IIIB in the retroperitoneal table. */
+var STS_COMMON = {
+  T: {
+    cats: ['T1', 'T2', 'T3', 'T4'],
+    def: {
+      'T1': 'tumor <= 5 cm in greatest dimension',
+      'T2': 'tumor > 5 cm and <= 10 cm in greatest dimension',
+      'T3': 'tumor > 10 cm and <= 15 cm in greatest dimension',
+      'T4': 'tumor > 15 cm in greatest dimension'
+    },
+    notes: 'The four 5 cm intervals are the AJCC 8 soft tissue sarcoma scale and are identical for the trunk and extremities table and for the retroperitoneal table. There is no TX and no T0 in either table, so neither is offered: the published T column names only T1 to T4. The head and neck and the abdomen and thoracic visceral organs scales are different - head and neck uses 2 cm and 4 cm cut points and adds T4a and T4b, and abdomen and thoracic visceral organs is organ based with T2a, T2b and T4a to T4c - and neither has a published stage grouping, so neither is offered.'
+  },
+  N: {
+    cats: ['N0', 'N1'],
+    def: {
+      'N0': 'No regional lymph node metastasis or unknown lymph node status',
+      'N1': 'Regional lymph node metastasis'
+    },
+    notes: 'THERE IS NO NX CATEGORY, AND THAT IS THE SOURCE. The published N0 definition is "No regional lymph node metastasis or unknown lymph node status": an unknown nodal status is folded into N0 rather than given its own category. Offering NX here would contradict the definition, so it is not offered.'
+  },
+  M: {
+    cats: ['M0', 'M1'],
+    def: {
+      'M0': 'No distant metastasis',
+      'M1': 'Distant metastasis'
+    },
+    notes: 'Only M0 and M1 are published. There is no M1a, M1b or M1c subdivision in either soft tissue table - distant metastasis is not subdivided by site in this chapter.'
+  },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3'],
+    def: {
+      'GX': 'Grade cannot be assessed',
+      'G1': 'Total differentiation, mitotic count and necrosis score of 2 or 3',
+      'G2': 'Total differentiation, mitotic count and necrosis score of 4 or 5',
+      'G3': 'Total differentiation, mitotic count and necrosis score of 6, 7, or 8'
+    },
+    notes: 'GRADE IS PART OF THE STAGE TABLE HERE. The printed rows carry G1 and GX for the low-grade groups and G2 and G3 for the high-grade groups, and any G for the nodal and metastatic rows. The scale is the FNCLCC total score - the sum of differentiation, mitotic count and necrosis - and it is specific to soft tissue sarcoma. It must not be interchanged with the bone sarcoma G1 to G3 wording, which is a different scheme on the same chapter.'
+  }
+};
+
+var STS_TRUNK_ROWS = [
+  { g: 'IA', T: 'T1', N: 'N0', M: 'M0', G: 'G1,GX' },
+  { g: 'IB', T: 'T2,T3,T4', N: 'N0', M: 'M0', G: 'G1,GX' },
+  { g: 'II', T: 'T1', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IIIA', T: 'T2', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IIIB', T: 'T3,T4', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IV', T: 'Any T', N: 'N1', M: 'M0', G: 'Any G' },
+  { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1', G: 'Any G' }
+];
+
+var STS_RETRO_ROWS = [
+  { g: 'IA', T: 'T1', N: 'N0', M: 'M0', G: 'G1,GX' },
+  { g: 'IB', T: 'T2,T3,T4', N: 'N0', M: 'M0', G: 'G1,GX' },
+  { g: 'II', T: 'T1', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IIIA', T: 'T2', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IIIB', T: 'T3,T4', N: 'N0', M: 'M0', G: 'G2,G3' },
+  { g: 'IIIB', T: 'Any T', N: 'N1', M: 'M0', G: 'Any G' },
+  { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1', G: 'Any G' }
+];
+
+SITES.softTissueSarcomaTrunkExtremities = {
+  id: 'softTissueSarcomaTrunkExtremities',
+  name: 'Soft tissue sarcoma of trunk and extremities',
+  group: 'Bone & soft tissue sarcoma',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'Soft tissue sarcoma of the trunk and extremities. This is the first of the three AJCC 8 soft tissue sarcoma tables; the retroperitoneal one is built as its own site because the two tables disagree about nodal disease without distant metastasis.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: STS_COMMON.T,
+  N: STS_COMMON.N,
+  M: STS_COMMON.M,
+  G: STS_COMMON.G,
+  sets: [
+    { id: 'sts_trunk_extremities', label: 'Table. AJCC 8 Soft Tissue Sarcoma Stage Groups (trunk and extremities)', rows: STS_TRUNK_ROWS }
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C136694  Soft Tissue Sarcoma of the Trunk and Extremities by AJCC v8 Stage, and its children C136696, C136698, C136700, C136701, C136702, C136703, C136705, C136706 (NCI Thesaurus EVS) - all stage rows, and the T/N/M/G wording used in the table definitions',
+    'PathologyOutlines.com/topic/softtissuestaging.html (Alexiev BA, last author and staff update 24 August 2023) - pT category wording. This page publishes NO stage-grouping section, so it contributes no stage row.'
+  ],
+  notes: 'THE STAGE COMPOSITION RESTS ON A SINGLE SOURCE AND THAT IS STATED RATHER THAN HIDDEN. Pathology Outlines has no stage table for soft tissue sarcoma at all - its table of contents runs Definition / general, Essential features, Terminology, ICD coding, Primary tumor (pT), Regional lymph nodes (pN), Distant metastasis (pM), Prefixes, Histologic grade (G), Histopathologic type and stops there, with no stage-grouping entry. So unlike the bone table, which both sources publish, every row here comes from NCI Thesaurus EVS alone, and the Pathology Outlines page is used only for the pT wording. THE T, N, M AND G AXES ARE SHARED VERBATIM WITH THE RETROPERITONEAL SITE. The two tables print the same four size intervals, the same N0 wording that folds unknown status into N0, the same undivided M0 and M1, and the same FNCLCC G scale, so the axis objects are declared once and referenced by both sites. The stage rows are not shared, because they are not the same. STAGE I AND STAGE III ARE CONTAINERS, NOT GROUPS, AND NO PARENT ROW IS BUILT FOR THEM. The source prints "Stage I includes: IA: (T1, N0, M0, G1, GX); IB: (T2, T3, T4, N0, M0, G1, GX)" and "Stage III includes: IIIA: (T2, N0, M0, G2, G3); IIIB: (T3, T4, N0, M0, G2, G3)", that is, Stage I exists only as its two subgroups and Stage III only as its two. A parent row for I or III would match every case already matched by its children and the engine would then return two groups for the same input, so the leaves IA, IB, II, IIIA, IIIB and IV are the selectable groups and no unscored Stage I or Stage III is offered. THERE ARE TWO ROWS LABELLED IV AND THAT IS HOW THE SOURCE PRINTS IT: one is Any T, N1, M0, Any G and the other is Any T, Any N, M1, Any G. NODAL DISEASE WITHOUT DISTANT METASTASIS IS STAGE IV IN THIS TABLE, which is the opposite of the retroperitoneal table, where the same combination is Stage IIIB. Both are built as published and the difference is called out on each site, because it is the single most likely thing to get wrong in this chapter. The source prints the first IV row parenthesised, (Any T, N1, M0, Any G), and the second unparenthesised; the parentheses carry no meaning and are not reproduced as structure. The yp and r bases reuse this table by convention, since no post-neoadjuvant or recurrent soft tissue table is published.'
+};
+
+SITES.softTissueSarcomaRetroperitoneum = {
+  id: 'softTissueSarcomaRetroperitoneum',
+  name: 'Soft tissue sarcoma of retroperitoneum',
+  group: 'Bone & soft tissue sarcoma',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'Retroperitoneal soft tissue sarcoma. This staging system applies to common sarcomas in the retroperitoneum. Built as its own site rather than merged with the trunk and extremities table because the published rows differ.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: STS_COMMON.T,
+  N: STS_COMMON.N,
+  M: STS_COMMON.M,
+  G: STS_COMMON.G,
+  sets: [
+    { id: 'sts_retroperitoneum', label: 'Table. AJCC 8 Soft Tissue Sarcoma Stage Groups (retroperitoneum)', rows: STS_RETRO_ROWS }
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'C136811  Retroperitoneal Sarcoma by AJCC v8 Stage, and its children C136812, C136813, C136814, C136815, C136816, C136817, C136818, C136819 (NCI Thesaurus EVS) - all stage rows',
+    'PathologyOutlines.com/topic/softtissuestaging.html (Alexiev BA, last author and staff update 24 August 2023) - pT category wording only; this page publishes no stage-grouping section'
+  ],
+  notes: 'NODAL DISEASE WITHOUT DISTANT METASTASIS IS STAGE IIIB HERE, NOT STAGE IV. This is the one place where the two soft tissue tables genuinely disagree, and it is the reason they are two sites rather than one. The trunk and extremities table prints Stage IV as (Any T, N1, M0, Any G); (Any T, Any N, M1, Any G), so nodal disease without distant metastasis is IV. The retroperitoneal table instead prints it inside Stage IIIB: "Stage IIIB includes: (T3, T4, N0, M0, G2, G3); (Any T, N1, M0, Any G)", and its Stage IV is the single row "Any T, Any N, M1, Any G". A case that is Any T, N1, M0 is therefore IIIB here and IV on the neighbouring site. Both readings are faithful to their own source and neither is reconciled here. THE STAGE COMPOSITION RESTS ON A SINGLE SOURCE. Pathology Outlines publishes no stage-grouping section for soft tissue sarcoma, so every row comes from NCI Thesaurus EVS; the Pathology Outlines page contributes only the pT wording. THE T, N, M AND G AXES ARE THE SAME OBJECT AS THE TRUNK AND EXTREMITIES SITE, since the sources print the same four 5 cm intervals, the same N0 wording that absorbs unknown nodal status, the same undivided M0 and M1, and the same FNCLCC G scale. STAGE I AND STAGE III ARE CONTAINERS AND ARE NOT BUILT AS GROUPS. The source prints "Stage I includes: IA: (T1, N0, M0, G1, GX); IB: (T2, T3, T4, N0, M0, G1, GX)" and "Stage III includes: IIIA: (T2, N0, M0, G2, G3); IIIB: (T3, T4, N0, M0, G2, G3); (Any T, N1, M0, Any G)", so Stage I and Stage III exist only as containers. Adding a parent row would double-answer every case, so the selectable groups are IA, IB, II, IIIA, IIIB and IV. THERE ARE TWO ROWS LABELLED IIIB HERE, which is how the source prints it - one is T3, T4, N0, M0, G2, G3 and the other is Any T, N1, M0, Any G - and they are disjoint because one requires N0 and the other N1. The yp and r bases reuse this table by convention, since no post-neoadjuvant or recurrent retroperitoneal table is published.'
+};
+
+/* Endocrine chapter.
+   Adrenal cortical carcinoma completes the AJCC 8 endocrine chapter: the three
+   thyroid sites are already in this app, and adrenal cortex is the only other
+   primary the endocrine chapter stages.
+   The stage table and the T/N/M wording come from Pathology Outlines; the NCI
+   Thesaurus EVS was used to cross-check every row and to supply M0, which the
+   Pathology Outlines category page does not list even though the printed stage
+   table uses M0 in four of its five rows.
+   INCLUDED: adrenalCorticalCarcinoma.
+   NOT INCLUDED, AND NOT BECAUSE IT WAS FORGOTTEN:
+      - adrenal medullary pheochromocytoma. The EVS parent concept for this
+        chapter states verbatim that it "is staged according to the
+        classification for adrenal neuroendocrine tumors", so it belongs to the
+        neuroendocrine tumor chapter, not here.
+      - neuroblastic tumors of the adrenal gland. The same concept states
+        verbatim "There is no AJCC staging system for neuroblastic tumors of the
+        adrenal gland", so there is no table to build.
+      - parathyroid carcinoma and the other endocrine primaries. Neither
+        Pathology Outlines nor EVS publishes an AJCC 8 stage grouping for
+        them. */
+var ACC_ROWS = [
+  { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+  { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+  { g: 'III', T: 'T1', N: 'N1', M: 'M0' },
+  { g: 'III', T: 'T2', N: 'N1', M: 'M0' },
+  { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+  { g: 'III', T: 'T3', N: 'N1', M: 'M0' },
+  { g: 'III', T: 'T3', N: 'NX', M: 'M0' },
+  { g: 'III', T: 'T4', N: 'N0', M: 'M0' },
+  { g: 'III', T: 'T4', N: 'N1', M: 'M0' },
+  { g: 'III', T: 'T4', N: 'NX', M: 'M0' },
+  { g: 'IV', T: 'T1', N: 'N0', M: 'M1' },
+  { g: 'IV', T: 'T1', N: 'N1', M: 'M1' },
+  { g: 'IV', T: 'T1', N: 'NX', M: 'M1' },
+  { g: 'IV', T: 'T2', N: 'N0', M: 'M1' },
+  { g: 'IV', T: 'T2', N: 'N1', M: 'M1' },
+  { g: 'IV', T: 'T2', N: 'NX', M: 'M1' },
+  { g: 'IV', T: 'T3', N: 'N0', M: 'M1' },
+  { g: 'IV', T: 'T3', N: 'N1', M: 'M1' },
+  { g: 'IV', T: 'T3', N: 'NX', M: 'M1' },
+  { g: 'IV', T: 'T4', N: 'N0', M: 'M1' },
+  { g: 'IV', T: 'T4', N: 'N1', M: 'M1' },
+  { g: 'IV', T: 'T4', N: 'NX', M: 'M1' },
+  { g: 'IV', T: 'TX', N: 'N0', M: 'M1' },
+  { g: 'IV', T: 'TX', N: 'N1', M: 'M1' },
+  { g: 'IV', T: 'TX', N: 'NX', M: 'M1' }
+];
+
+SITES.adrenalCorticalCarcinoma = {
+  id: 'adrenalCorticalCarcinoma', name: 'Adrenal cortical carcinoma', group: 'Endocrine',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'Staging for adrenal cortical carcinoma, following the rules of the TNM AJCC v8 classification system, as stated by the NCI Thesaurus parent concept for this chapter. THAT SAME CONCEPT SAYS WHERE THE NEIGHBOURING ADRENAL TUMOURS BELONG: "Adrenal medullary pheochromocytoma is staged according to the classification for adrenal neuroendocrine tumors. There is no AJCC staging system for neuroblastic tumors of the adrenal gland." Adrenal medullary pheochromocytoma is therefore not staged on this table but belongs to the neuroendocrine tumor chapter, and neuroblastoma of the adrenal gland has no stage grouping to stage on. The printed stage table is not qualified to one anatomical region, unlike the bone sarcoma table, and it is the only stage table published for this site.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'T0', 'T1', 'T2', 'T3', 'T4'],
+    def: {
+      'TX': 'primary tumor cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'T1': 'tumor <= 5 cm, no extra-adrenal invasion',
+      'T2': 'tumor > 5 cm, no extra-adrenal invasion',
+      'T3': 'extra-adrenal invasion but no invasion of adjacent organs',
+      'T4': 'invasion of kidney, diaphragm, pancreas, spleen, liver, renal vein or vena cava'
+    },
+    notes: 'T1 and T2 are separated on size alone at 5 cm, and both require that there is NO extra-adrenal invasion; size stops deciding the T category once extra-adrenal invasion is present. T3 is extra-adrenal invasion WITHOUT invasion of adjacent organs, and T4 is invasion of a named adjacent organ or large vessel: kidney, diaphragm, pancreas, spleen, liver, renal vein or vena cava. The T4 list is reproduced exactly as the page prints it, and it is a list of specific organs rather than a general "adjacent organs" phrase, so invasion of something outside that list is not covered by the published wording. TX and T0 are published categories but appear in no M0 row of the table; see the refusals.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1'],
+    def: {
+      'NX': 'regional lymph nodes cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'regional lymph node metastasis (e.g., paraaortic, periaortic, retroperitoneal)'
+    },
+    notes: 'The page defines N1 with its own anatomical examples - paraaortic, periaortic and retroperitoneal nodes - which is unusual for an N category and is reproduced verbatim. NX is published as a category and, unlike the soft tissue sarcoma sites in this app, NX is NOT folded into N0: the printed Stage III row for T3 and T4 reads "N0 - 1, X", naming NX explicitly, so an unassessable nodal category does stage here rather than being refused. It does so ONLY for T3 and T4, though. The T1 and T2 row names N1 alone, so T1 and T2 with NX have no row in any group; see the refusals. That asymmetry is the source own and is the reverse of the soft tissue sarcoma convention, where N0 absorbs unknown nodal status.'
+  },
+  M: {
+    cats: ['M0', 'M1'],
+    def: {
+      'M0': 'no distant metastasis',
+      'M1': 'distant metastasis'
+    },
+    notes: 'This is the only M axis in the printed table: M0 and M1 with no M1a, M1b or M1c subdivision anywhere, so a single distant metastasis is Stage IV and nothing is refined by the site of that metastasis. THERE IS A SOURCE ODDITY WORTH NAMING RATHER THAN SMOOTHING OVER: the Pathology Outlines category list publishes pM1 but does NOT list pM0, even though the printed stage table uses M0 in four of its five rows. M0 is therefore sourced from the NCI Thesaurus, whose stage definitions state verbatim "M0: No distant metastasis", and M0 is offered here because the table itself requires it. No pMX category is published on either source, so none is offered.'
+  },
+  noStage: function (inp) {
+    if (inp.T === 'T0') {
+      return 'The published adrenal cortical carcinoma stage table has no row for T0. The T0 cell appears in no row of any group: Stage group IV prints its T cell as "T1 - 4, X", which names T1, T2, T3, T4 and TX but not T0. T0 is by definition "no evidence of primary tumor", so it is offered as a published category and then refused by the table rather than being quietly rounded into the nearest group. Note that the NCI Thesaurus prints the same row as "Any T, Any N, M1", which read literally would swallow T0; the explicit Pathology Outlines list is followed here because it names the values it covers, and the difference between the two sources is recorded rather than resolved silently.';
+    }
+    if (inp.T === 'T1' && inp.N === 'NX' || inp.T === 'T2' && inp.N === 'NX') {
+      return 'The published stage table covers NX for T3 and T4 but not for T1 and T2. The printed Stage group III rows are "T1 - 2 | N1 | M0" and "T3 - 4 | N0 - 1, X | M0": the first names N1 alone, while only the second names X, so T1 or T2 with nodal status not assessable has no row in any group. The asymmetry is the source own. It is worth naming because it is the mirror image of the soft tissue sarcoma sites in this same app, where N0 is defined as "no regional lymph node metastasis or unknown lymph node status" and therefore absorbs NX; here the two categories are kept strictly separate and NX stages only once the tumour is T3 or T4. Nothing in either source offers a rule for extending NX backwards to T1 and T2, so it is refused with that reason rather than being resolved by analogy.';
+    }
+    if (inp.T === 'TX' && inp.M === 'M0') {
+      return 'The published stage table has no M0 row for TX. TX is grouped only in Stage group IV, and every IV row requires M1, so a TX tumour without distant metastasis has no row anywhere in the table - not in Stage group I or II, which are T1 and T2 specific, and not in Stage group III, whose M0 rows are T1, T2, T3 and T4 specific. This is a gap in the published table rather than a row missing from this file.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'acc_ajcc8', label: 'Table. AJCC 8 Adrenal Cortical Carcinoma Stage Groups', rows: ACC_ROWS }
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'PathologyOutlines.com/topic/adrenalstaging.html (Zynger DL, author update 9 June 2020, staff update 3 October 2024) - "AJCC prognostic stage groups" table, T/N/M category wording, and the separate "Histologic grade (G)" section',
+    'C141100 Adrenal Cortical Carcinoma by AJCC v8 Stage (NCI Thesaurus EVS) - chapter scope, and the M0 wording, plus children C141101 Stage I, C141102 Stage II, C141103 Stage III and C141104 Stage IV as the cross-check on every row',
+    'C141079 Adrenal Cortical Carcinoma TNM Finding v8 (NCI Thesaurus EVS) and its published child TNM definitions'
+  ],
+  notes: 'THERE IS NO GRADE AXIS IN THIS STAGE TABLE. The page publishes a separate "Histologic grade (G)" section which divides tumors into low grade, defined as 20 mitoses per high powered field or fewer, and high grade, defined as more than 20 mitoses per high powered field or a TP53 or CTNNB mutation, but that section is not referenced by the stage table and no row carries a G value. Grade is therefore NOT offered as an input here. It is a prognostic factor for this disease and it is not a staging variable, and offering it would have suggested otherwise. THE TWO SOURCES AGREE ON EVERY ROW, BUT THE EXTRACTION NOTE THAT THEY DISAGREE IS WRONG AND IS RECORDED HERE SO IT IS NOT REINTRODUCED. The NCI Thesaurus Stage III definition reads verbatim: "Stage III includes: (T1, N1, M0); (T2, N1, M0); (T3, Any N, M0); (T4, Any N, M0)." A first pass over that definition dropped the leading "(T1, N1, M0); (T2, N1, M0)" clauses and reported Stage III as containing only T3 and T4, which would have left T1 and T2 with nodal metastasis unstaged - the commonest way a stage III adrenal cortical carcinoma presents. The verbatim text has all four clauses and matches the Pathology Outlines rows. WHERE THE TWO SOURCES DIFFER IN PHRASING, PATHOLOGY OUTLINES IS FOLLOWED. Pathology Outlines prints Stage group IV as T "T1 - 4, X" with N "N0 - 1, X", which enumerates the T and N values it covers; the NCI Thesaurus prints the same row as "Any T, Any N, M1". The explicit lists are used, so the rows here name T1, T2, T3, T4, TX and N0, N1, NX individually. The one behavioural consequence is T0, which the explicit list excludes and "Any T" would include; that case is refused with that reason given rather than being decided either way silently. THE RANGE FORMS ARE WRITTEN AS EXPLICIT LISTS, not as "T1 - 4", for the same reason the bone sarcoma table does it: a bare numeric range can be read or re-parsed with a category silently dropped, whereas an explicit list cannot be. THE NODAL INCLUSION IS THE EASY THING TO GET WRONG HERE. Regional nodal metastasis does not jump to Stage IV: it gives Stage group III when there is no distant metastasis. Any T with N1 and M0 is Stage group III, not IV, and the page prints no row at all where N1 with M0 is IV. NX is also graded here rather than refused, because the T3 and T4 Stage III row names X explicitly, so NX with M0 is Stage group III and NX with M1 is Stage group IV. THERE IS NO pMX AND NO M1 SUBDIVISION. Distant metastasis is Stage group IV whatever the site, and the page publishes no M1a, M1b or M1c for this site, so a case staged here cannot be refined by metastatic site and should not be expected to be. The yp and r bases reuse the pathologic table by convention; the source publishes no post-neoadjuvant, recurrent or ENSAT table on this page, and the ENSAT staging system that exists for this disease is a separate non-AJCC scheme, recorded here only so that its absence from this table is not mistaken for an oversight.'
+};
+
+/* Head & neck chapter: sinonasal (nasal cavity and paranasal sinuses).
+   THIS IS ONE SITE WITH TWO T SCALES, NOT TWO SITES. Pathology Outlines
+   publishes the maxillary sinus T criteria and the nasal cavity and ethmoid
+   sinus T criteria as two separate scales, and the T1/T2/T3 definitions differ
+   between them, but BOTH feed the SAME single AJCC prognostic stage grouping
+   and the same N and M scales. So one site object carries both sets of T
+   definitions and one table; the subsite never changes the group, only what
+   T1 and T2 mean. Splitting this into two sites would have produced two
+   identical stage tables and invited the reader to think the subsite matters
+   to the group. It does not.
+   THREE SOURCE FACTS THAT SHAPE THIS FILE:
+   1. THERE IS NO PATHOLOGIC M0 FOR THIS SITE. NCI PDQ, reproducing the AJCC
+      manual, states of M0 in the M table and then again in every single stage
+      table: "No distant metastasis (no pathologic M0; use clinical M to
+      complete stage group)." M is therefore completed clinically, and this
+      file leaves M on the clinical prefix by omitting M from fixedPrefix.
+   2. ENE IS NOT A SEPARATE INPUT. It is embedded in the N wording: N1 is
+      "...and ENE(-)", N2a/b/c and N3a/b each name ENE(+) and ENE(-). So there
+      is no E axis here even though ENE is the defining feature of N2 and N3.
+   3. EVS IS COARSER THAN PATHOLOGY OUTLINES ON N. EVS publishes bare pN2 and
+      pN3; PO publishes pN2a, pN2b, pN2c, pN3a and pN3b. PO is strictly more
+      specific, so the subdivisions are offered and the bare parents are
+      accepted in the rows alongside them.
+   INCLUDED: sinonasalCancer.
+   NOT INCLUDED, AND NOT BECAUSE IT WAS FORGOTTEN:
+      - sphenoid and frontal sinus cancer. PDQ states verbatim "There is no
+        standard staging system for cancer of the sphenoid and frontal
+        sinuses." T4a and T4b both name invasion of those sinuses, so a
+        sphenoid or frontal primary can still be staged by where it invades,
+        but it has no T scale of its own and no stage grouping of its own.
+      - lymphoma, sarcoma, mucosal melanoma, olfactory neuroblastoma, PNET and
+        the other neuroectodermal tumours of this region. PDQ: "Lymphomas,
+        sarcomas, and mucosal melanomas of the paranasal sinuses and nasal
+        cavity are not staged using this system." PO: "CAP protocol applies
+        only to carcinomas and melanomas and does not apply to lymphomas,
+        sarcomas or neuroectodermal tumors".
+      - olfactory neuroblastoma is the classic sinonasal malignancy and has
+        its own staging system, which is not AJCC and is not built here. */
+var SINONASAL_ROWS = [
+  { g: '0', T: 'Tis', N: 'N0', M: 'M0' },
+  { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+  { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+  { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+  { g: 'III', T: 'T1,T2,T3', N: 'N1', M: 'M0' },
+  { g: 'IVA', T: 'T4a', N: 'N0,N1', M: 'M0' },
+  { g: 'IVA', T: 'T1,T2,T3,T4a', N: 'N2,N2a,N2b,N2c', M: 'M0' },
+  { g: 'IVB', T: 'Any T', N: 'N3,N3a,N3b', M: 'M0' },
+  { g: 'IVB', T: 'T4b', N: 'Any N', M: 'M0' },
+  { g: 'IVC', T: 'Any T', N: 'Any N', M: 'M1' }
+];
+
+SITES.sinonasalCancer = {
+  id: 'sinonasalCancer', name: 'Nasal cavity and paranasal sinuses', group: 'Head & neck',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'Carcinoma of the nasal cavity and paranasal sinuses, covering two subsites that share one stage table: the maxillary sinus, and the nasal cavity and ethmoid sinus. Pathology Outlines defines the covered group as "squamous cell carcinoma, neuroendocrine carcinoma and minor salivary gland carcinoma" of the nasal cavity and paranasal sinuses. SEVERAL COMMON SINONASAL TUMOURS ARE DELIBERATELY OUTSIDE THIS SYSTEM. Lymphoma, sarcoma, olfactory neuroblastoma and the other neuroectodermal tumours are not staged here, and mucosal melanoma is staged by the mucosal melanoma classification instead: the NCI PDQ states verbatim "Lymphomas, sarcomas, and mucosal melanomas of the paranasal sinuses and nasal cavity are not staged using this system", and the Pathology Outlines staging protocol "applies only to carcinomas and melanomas and does not apply to lymphomas, sarcomas or neuroectodermal tumors (e.g. olfactory neuroblastoma, primitive neuroectodermal tumor [PNET], others)". THE SPHENOID AND FRONTAL SINUSES HAVE NO STAGE GROUPING OF THEIR OWN: PDQ states "There is no standard staging system for cancer of the sphenoid and frontal sinuses." Both T4a and T4b name invasion of those sinuses, so a sphenoid or frontal primary that has invaded far enough is still stageable by what it invades, but it has no T category of its own. ONE FURTHER LIMITATION IS WORTH CARRYING: PDQ states "The staging described below is used only for patients who have not had a lymph node dissection of the neck", and adds that staging for this site "is not as well established as staging for other head and neck tumors".',
+  fixedPrefix: { T: 'p', N: 'p' },
+  T: {
+    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
+    def: {
+      'TX': 'primary tumor cannot be assessed',
+      'Tis': 'carcinoma in situ',
+      'T1': 'MAXILLARY SINUS: tumor limited to maxillary sinus mucosa with no erosion or destruction of bone. NASAL CAVITY AND ETHMOID SINUS: tumor restricted to any 1 subsite, with or without bone invasion',
+      'T2': 'MAXILLARY SINUS: tumor causing bone erosion or destruction including extension into the hard palate or middle nasal meatus, except extension to posterior wall of maxillary sinus and pterygoid plates. NASAL CAVITY AND ETHMOID SINUS: tumor invading 2 subsites in a single region or extending to involve an adjacent region within the nasoethmoidal complex, with or without bone invasion',
+      'T3': 'MAXILLARY SINUS: tumor invades any of the following - bone of the posterior wall of maxillary sinus, subcutaneous tissues, floor or medial wall of orbit, pterygoid fossa, ethmoid sinuses. NASAL CAVITY AND ETHMOID SINUS: tumor extends to invade the medial wall or floor of the orbit, maxillary sinus, palate or cribriform plate',
+      'T4': 'moderately advanced or very advanced local disease (the printed parent of T4a and T4b; it does not say which, so it cannot be staged on its own)',
+      'T4a': 'moderately advanced local disease; tumor invades any of the following - anterior orbital contents, skin of nose or cheek, minimal extension to anterior cranial fossa, pterygoid plates, sphenoid or frontal sinuses',
+      'T4b': 'very advanced local disease; tumor invades any of the following - orbital apex, dura, brain, middle cranial fossa, cranial nerves other than maxillary division of trigeminal nerve (V2), nasopharynx or clivus'
+    },
+    notes: 'EACH OF T1, T2 AND T3 MEANS TWO DIFFERENT THINGS, AND THE SUBSITE NEVER CHANGES THE STAGE GROUP. The maxillary sinus and the nasal cavity plus ethmoid sinus are two different T scales that feed one shared stage table, so both sets of wording are given above. Read the maxillary sinus line if the tumour arose in the maxillary antrum and the nasal cavity and ethmoid sinus line if it arose in the nasal cavity or ethmoid cells. The differences are substantial and not cosmetic: a maxillary T1 needs no bone erosion, whereas a nasal cavity T1 is explicitly allowed to invade bone; a maxillary T3 is defined by posterior-wall bone, subcutaneous tissue, orbit, pterygoid fossa or ethmoid sinus, whereas a nasal cavity T3 is defined by orbit, maxillary sinus, palate or cribriform plate. Tis and T4a are printed identically for the two subsites, and the ethmoid-sinus T4b entry begins identically before the page runs out of text (see below), so no subsite qualifier is carried on T4a or T4b. BARE T4 IS OFFERED AND THEN REFUSED, because the printed parent "Moderately advanced or very advanced local disease" does not distinguish T4a from T4b and the group turns on exactly that: T4a is Stage group IVA and T4b is Stage group IVB. There IS NO T0. AJCC 8 eliminated it, and the Pathology Outlines staging terminology page for this site states verbatim that the eighth edition change is "the elimination of the T0 category for all oral cavity, skin, larynx, HPV- oropharynx, hypopharynx and sinus". Tis IS A REAL STAGEABLE CATEGORY HERE, unlike at most sites in this app: it is the whole of Stage group 0. THE TWO PUBLISHED SOURCES DISAGREE ON THE MAXILLARY T4a LIST, and the difference is recorded rather than quietly settled. Pathology Outlines gives "Anterior orbital contents, skin of nose or cheek, minimal extension to anterior cranial fossa, pterygoid plates, sphenoid or frontal sinuses". PDQ and EVS both give, for the maxillary sinus, "Anterior orbital contents, skin of cheek, pterygoid plates, INFRATEMPORAL FOSSA, CRIBIFORM PLATE, sphenoid or frontal sinuses". The Pathology Outlines list is used above for both subsites. Two consequences are worth stating: infratemporal fossa invasion is named by PDQ and EVS but not by the list used here, and cribriform plate invasion is a T3 feature for the nasal cavity and ethmoid sinus but a T4a feature in the PDQ and EVS maxillary list. A pathologist staging a maxillary tumour that invades the infratemporal fossa should read the two sources before relying on this list. THE ETHMOID-SINUS T4b ENTRY ON THE PATHOLOGY OUTLINES PAGE IS INCOMPLETE, AND THE COMPLETE MAXILLARY-SINUS ENTRY IS USED FOR BOTH SUBSITES. This was checked against the page itself rather than inferred. The two T4b entries are printed one after the other, and the second one stops in the middle of a word sequence with no closing punctuation: "pT4b: Very advanced local disease; tumor invades any of the following: Orbital apex, dura, brain, middle cranial " and then nothing. The entry immediately above it, for the maxillary sinus, reads in full "Orbital apex, dura, brain, middle cranial fossa, cranial nerves other than maxillary division of trigeminal nerve (V2), nasopharynx or clivus". The truncated entry agrees with the complete one for every character it does print, stopping at "middle cranial" where the complete one has "middle cranial fossa". The gap is a defect in that page, not a reading failure here. What the page does publish is enough to say the T4b list is very probably shared between the two subsites, and it is used as shared above. It is not enough to state the ethmoid wording as fact, and this app does not state it. The one difference between sources is between Pathology Outlines and the EVS Stage IV text rather than between the two subsites: Pathology Outlines spells the nerve clause out as "cranial nerves other than maxillary division of trigeminal nerve (V2)" while the EVS Stage IV text abbreviates it to "other than V2". The list above follows Pathology Outlines. The T4a list above is likewise the Pathology Outlines list, printed identically for both subsites.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b'],
+    def: {
+      'NX': 'regional lymph nodes cannot be assessed',
+      'N0': 'no regional lymph node metastasis',
+      'N1': 'metastasis in a single ipsilateral lymph node, <= 3 cm in greatest dimension and extranodal extension negative (ENE-)',
+      'N2': 'metastasis in a single ipsilateral node > 3 cm but <= 6 cm in greatest dimension and ENE-; or metastases in multiple ipsilateral lymph nodes, none > 6 cm and ENE-; or in bilateral or contralateral lymph nodes, none > 6 cm and ENE-',
+      'N2a': 'metastasis in a single ipsilateral lymph node that is <= 3 cm and ENE+, or a single ipsilateral lymph node that is > 3 cm but <= 6 cm in greatest dimension and ENE-',
+      'N2b': 'metastasis in multiple ipsilateral lymph nodes, none > 6 cm in greatest dimension and ENE-',
+      'N2c': 'metastasis in bilateral or contralateral lymph node(s), none > 6 cm in greatest dimension and ENE-',
+      'N3': 'metastasis in a lymph node > 6 cm in greatest dimension and ENE-, or metastasis in any node(s) with clinically overt ENE(+)',
+      'N3a': 'metastasis in a lymph node that is > 6 cm in greatest dimension and ENE-',
+      'N3b': 'metastasis in a single ipsilateral lymph node > 3 cm and ENE+, or multiple ipsilateral, contralateral or bilateral lymph nodes any with ENE+, or a single contralateral lymph node of any size and ENE+'
+    },
+    notes: 'ENE IS BUILT INTO THESE CATEGORIES, WHICH IS WHY THERE IS NO ENE INPUT ANYWHERE IN THIS APP FOR THIS SITE. A reader who wants to stage ENE-positive disease does not set an E field: N2a, N3b and N2 on the PDQ reading all turn on ENE(+), and that is already inside the N category they pick. N1 is defined as ENE(-) by construction, so a single ipsilateral node of 3 cm or less that is ENE(+) is N2a and not N1 - that single distinction is the whole reason the ENE split exists in this chapter. THE BARE PARENTS N2 AND N3 ARE OFFERED ALONGSIDE THEIR SUBDIVISIONS, and the stage rows accept both forms, because both parents are published values: the printed table uses N2 and N3, while Pathology Outlines defines N2a, N2b, N2c, N3a and N3b. N2 and every one of its subdivisions are Stage group IVA; N3 and every one of its subdivisions are Stage group IVB. THE THREE SOURCES DISAGREE ON THE N2 PARENT DEFINITION, and PO is followed. Pathology Outlines and EVS both include a single ipsilateral node of 3 cm or less that is ENE(+) within N2; the PDQ wording of the bare N2 parent omits that case, though its own N2a row includes it. The discrepancy is recorded here rather than resolved silently, and it changes no stage group. N0 and the ENE-negative categories are unaffected. TWO FURTHER SOURCE NOTES. A designation of "U" or "L" may be used for any N category to indicate metastasis above or below the lower border of the cricoid, and midline nodes are considered ipsilateral nodes; both are reproduced from the source and neither changes a group.'
+  },
+  M: {
+    cats: ['M0', 'M1'],
+    def: {
+      'M0': 'no distant metastasis (NO PATHOLOGIC M0 FOR THIS SITE - use clinical M to complete the stage group)',
+      'M1': 'distant metastasis'
+    },
+    notes: 'THERE IS NO PATHOLOGIC M0 AT THIS SITE, AND THAT IS THE MOST IMPORTANT LINE IN THIS FILE. The NCI PDQ, reproducing the AJCC manual, defines M0 as "No distant metastasis (no pathologic M0; use clinical M to complete stage group)" and repeats that parenthetical against every M0 entry in every stage table it prints. EVS agrees: it publishes a pM1 concept for this site and no pM0 concept at all. Pathology Outlines lists a pM0 category line without that caveat, which is a real difference between the sources, and it is the clinical instruction from PDQ that is followed here. M is therefore deliberately left on the clinical prefix - this site sets fixedPrefix for T and N only, so T and N read pT and pN while M always reads cM. A pathologist who has a resection specimen still supplies cM0 here, because that is what completing the group requires, and the definition text above says so at the point of use. There is no M1 subdivision of any kind: no M1a, M1b or M1c is published for this site, so distant metastasis is Stage group IVC whatever the site.'
+  },
+  noStage: function (inp) {
+    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4b') {
+      return 'The published stage table has no row for NX with this T. Every printed N cell names N0, N1, N2, N3 or "Any N", and the only row that admits an unassessable nodal category is the Stage group IVB row, which prints "T4b, Any N, M0" and so covers T4b only. For TX, Tis, T1, T2, T3, T4 and T4a with NX and no distant metastasis there is nowhere to land, so the case is refused rather than rounded. This is a gap in the published table, not a row missing from this file. TWO REFLECTIONS ON WHY. NX with M1 does stage for every T, because Stage group IVC prints "Any T, Any N, M1" and any N covers NX. And T4b with NX and M0 stages as IVB for the same reason, by its own Any N row. So the table is inconsistent about NX - it will not take it into III or IVA but will take it into IVB and IVC - and that inconsistency is recorded rather than resolved by analogy.';
+    }
+    if (inp.T === 'T4' && inp.M === 'M0') {
+      if (inp.N === 'N0' || inp.N === 'N1' || inp.N === 'N2' || inp.N === 'N2a' || inp.N === 'N2b' || inp.N === 'N2c') {
+        return 'Bare T4 cannot be staged here, because the whole stage group turns on which of T4a and T4b it is and the published parent T4 does not say. T4a is "moderately advanced local disease" and is Stage group IVA; T4b is "very advanced local disease" and is Stage group IVB. The printed parent reads only "Moderately advanced or very advanced local disease", so it spans both. Select T4a or T4b. Note that T4 with N3 or with M1 is not refused: Any T covers it and the group is IVB or IVC respectively, so the ambiguity only bites when the nodal and metastatic status leave T4a and T4b pointing at different groups.';
+      }
+    }
+    if (inp.T === 'Tis' && inp.M === 'M0' && (inp.N === 'N1' || inp.N === 'N2' || inp.N === 'N2a' || inp.N === 'N2b' || inp.N === 'N2c')) {
+      return 'Carcinoma in situ appears in exactly one row of the published table: Stage group 0, as Tis with N0 and M0. Tis with regional nodal metastasis has no row, because the Stage group III row names T1 to T3 and the Stage group IVA row names T1 to T4a. Tis with N3 would be Stage group IVB and Tis with M1 would be Stage group IVC, since both of those rows print "Any T"; it is only the N1 and N2 combinations that have no row. The source is internally inconsistent about the bare T here, and that inconsistency is recorded rather than resolved by guessing.';
+    }
+    if (inp.T === 'TX' && inp.M === 'M0' && (inp.N === 'N0' || inp.N === 'N1' || inp.N === 'N2' || inp.N === 'N2a' || inp.N === 'N2b' || inp.N === 'N2c')) {
+      return 'An unassessable primary tumour with no distant metastasis has no row in the published table at N0, N1 or N2. Those rows all name T categories specifically: Stage group I is T1, Stage group II is T2, Stage group III is T3 or T1 to T3 with N1, and Stage group IVA is T4a or T1 to T4a with N2. TX is only reached through the two rows that print "Any T", namely Stage group IVB with N3 and Stage group IVC with M1, so TX with N3 or with M1 does stage while TX with N0, N1 or N2 does not. This is a gap in the published table rather than a row missing from this file.';
+    }
+    return null;
+  },
+  sets: [
+    { id: 'sinonasal_ajcc8', label: 'Table. AJCC 8 Sinonasal (Nasal Cavity and Paranasal Sinuses) Stage Groups', rows: SINONASAL_ROWS }
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: [
+    'PathologyOutlines.com/topic/nasalTNM.html (Magliocca K, author update 26 September 2019, staff update 18 August 2022) - both T scales with T4a and T4b, though the ethmoid-sinus T4b entry is incomplete on the page itself, the pN scale with the N2a/N2b/N2c and N3a/N3b subdivisions, the AJCC prognostic stage grouping, the histologic grade section, and the scope exclusions',
+    'C133074 Sinonasal Cancer by AJCC v8 Stage (NCI Thesaurus EVS) with children C87498 Stage 0, C133076 Stage I, C133077 Stage II, C133078 Stage III and C133079 Stage IV - the stage rows and the stage rows, and a Stage IV text whose T4a and T4b lists agree with the Pathology Outlines lists apart from the abbreviated nerve clause, so the two sources corroborate each other rather than one supplying what the other lacks',
+    'C133026 Nasal Cavity and Paranasal Sinuses Cancer Pathologic TNM Finding v8, with C133027 (maxillary sinus T), C133028 (nasal cavity and ethmoid sinus T), C133029 (N) and C133031 (M) - the two separate T scales, and the absence of any pM0 concept',
+    'cancer.gov paranasal-sinus-treatment-pdq (NCI PDQ, Health Professional) - the "no pathologic M0; use clinical M to complete stage group" rule, the clinical N table, the T4a wording that adds infratemporal fossa, and the stated staging scope'
+  ],
+  notes: 'THIS IS ONE SITE WITH TWO T SCALES, AND THE SUBSITE NEVER CHANGES THE GROUP. Pathology Outlines publishes the maxillary sinus T criteria and the nasal cavity and ethmoid sinus T criteria separately, and the two lists differ for T1, T2 and T3, but they feed a single AJCC prognostic stage grouping and a single N and M scale. Both sets of wording are reproduced in the T definitions so the reader can apply the right one, and a single table is used, because two sites with identical stage tables would wrongly suggest the subsite affects the group. "ANY T" AND "ANY N" ARE TAKEN LITERALLY, WHICH INCLUDES TX AND Tis. The Stage group IVB and IVC rows print "Any T", and the IVB and IVC groups are reached by the spread or the metastasis rather than by the size of the primary, so Tis with M1 is IVC and TX with N3 is IVB. The asymmetry is the source own: the rows for I, II, III and IVA all name T categories specifically, so TX and Tis with N0, N1 or N2 have no row and are refused with that reason. NX IS REFUSED FOR ALMOST EVERY M0 COMBINATION AND ACCEPTED WHEREVER "ANY N" APPEARS, and the exceptions are worth reading carefully. No row in the table admits an unassessable nodal category by naming N0, N1, N2 or N3, so NX with M0 has no group for TX, Tis, T1, T2, T3, T4 or T4a. But two rows do print "Any N", and they admit it: the Stage group IVB row "T4b, Any N, M0" stages T4b with NX as IVB, and the Stage group IVC row "Any T, Any N, M1" stages NX with M1 as IVC for any T at all. The table is therefore internally inconsistent about NX - it will not take NX into Stage group III or IVA but will take it into IVB and IVC - and that inconsistency is recorded rather than resolved by analogy. BARE T4 IS THE ONE PLACE WHERE THE PARENT IS OFFERED AND REFUSED FOR A REASON THAT IS NOT SIMPLY "no row". T4 spans T4a and T4b, and those are Stage group IVA and Stage group IVB respectively, so T4 without a letter has no single answer. It is not refused for T4 with N3 or with M1, where the group is determined anyway. STAGE 0 AND STAGE IVC BOTH EXIST HERE, which is unusual for a head and neck site. Stage 0 is Tis with N0 and M0, and Stage IVC is any tumour with distant metastasis. The stage rows are written with both the bare N2 and N3 and their subdivisions, so a case staged from a source that only publishes the parents and a case staged from one that publishes the subdivisions both reach the same group. THE THREE SOURCES AGREE ON EVERY STAGE ROW; PO, PDQ and EVS print the same groupings. They disagree only on category wording, in three places that are each recorded above rather than being settled silently: the maxillary T4a list (PO omits infratemporal fossa and cribriform plate, PDQ and EVS include them), the bare N2 definition (PDQ omits the ENE(+) single node of 3 cm or less that PO and EVS both include), and the maxillary T4a wording itself (PO says "skin of nose or cheek", PDQ says "skin of cheek"). The grade section on the source page publishes GX, G1, G2 and G3, and no row of the stage table carries a G, so grade is NOT offered as an input; it is a registry data collection variable here, not a staging variable. There is no separate ENE input either, for the reason given in the N notes: ENE is already inside the N categories. The yp and r bases reuse the pathologic table by convention; no post-neoadjuvant or recurrent sinonasal table is published by any of the three sources, and PDQ separately notes that this staging "is used only for patients who have not had a lymph node dissection of the neck", which is a limitation on the clinical setting rather than on the table.'
+};
+
+</script>
 <script>
 /* ==== 30-sites-lower-gi.js ==== */
 /* -----------------------------------------------------------------------
