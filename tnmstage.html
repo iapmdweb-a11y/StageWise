@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AJCC / UICC TNM Stage Group Calculator</title>
+<title>StageWise — Site-Specific TNM Stage Grouping</title>
 <style>
 :root{
   --bg:#f6f7f9; --panel:#fff; --ink:#16191d; --mut:#5b6470; --line:#dfe3e8;
@@ -19,9 +19,13 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
      font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{background:var(--accent);color:var(--accent-ink);padding:14px 20px}
+header{background:var(--accent);color:var(--accent-ink);padding:12px 20px;display:flex;align-items:center;gap:14px}
+header .brand{display:flex;align-items:center;gap:14px;min-width:0}
+header .logo{width:46px;height:46px;flex:none;object-fit:contain;border-radius:9px;background:#fff;padding:3px;
+     box-shadow:0 1px 3px rgba(0,0,0,.25)}
 header h1{margin:0;font-size:19px;letter-spacing:.2px}
 header p{margin:3px 0 0;font-size:12.5px;opacity:.92}
+header .tag{margin:4px 0 0;font-size:11.5px;line-height:1.45;opacity:.8;max-width:78ch}
 main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;align-items:start}
 @media (max-width:900px){main{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
@@ -72,8 +76,17 @@ footer{padding:8px 20px 28px;color:var(--mut);font-size:11.5px;max-width:1100px}
 </head>
 <body>
 <header>
-  <h1>AJCC / UICC TNM Stage Group Calculator</h1>
-  <p>Every table below is transcribed from the cited source. Nothing is inferred, rounded or borrowed &mdash; where a published table is silent, this app refuses and says so.</p>
+  <div class="brand">
+    <img class="logo" alt="StageWise logo"
+         src="https://cdn1.artcltn.com/storage/25635/a233962a-ffe4-4e35-a0f2-86c48caa4ff2/chatgpt_image_sep_27_2026_03_59_24_am.png?w=1080"
+         width="46" height="46">
+    <div>
+      <h1>StageWise</h1>
+      <p>Site-Specific TNM Stage Grouping &mdash; According to AJCC/UICC Criteria.</p>
+      <p class="tag">Every table below is transcribed from the cited source. Nothing is inferred, rounded or
+      borrowed &mdash; where a published table is silent, this app refuses and says so.</p>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -92,6 +105,8 @@ footer{padding:8px 20px 28px;color:var(--mut);font-size:11.5px;max-width:1100px}
         <button type="button" data-mode="r"  aria-pressed="false">rTNM</button>
       </div>
       <div class="hint" id="modeHint"></div>
+
+      <div id="kinds"></div>
 
       <div id="axes"></div>
       <div id="extra"></div>
@@ -303,14 +318,66 @@ function modeAllows(decl, mode) {
    read off TNM categories. The caller asserts it, and when the assertion is r or
    yp and no table is published for it, the resulting group is labelled as a
    convention rather than presented as if AJCC had published it.                */
-function tableProvenance(site, mode) {
+/* --------------------------------------------------------------------------
+   5b. TABLE FAMILIES  ("kind")
+
+   AJCC 8 publishes more than one stage-group table for the SAME basis in some
+   organs, and the tables are not variants of one another. Breast is the case
+   that forces the model: Table 8 grades T/N/M alone, while Tables 9 and 10
+   grade the same T/N/M against histologic grade AND HER2, ER and PR status.
+   They disagree for identical categories - pT2 N1 M0 G3 is IIB in the anatomic
+   table and can be IIB, IIIA or IIIB in the prognostic table depending only on
+   receptor status. Guessing which table the user meant from the data they
+   entered would be an inference, so the app asks instead: a set may declare
+   `kind`, and a site with more than one family declares
+        tableKinds: [{ k, label, note }]
+   with the FIRST entry as the default. Sites that declare nothing here behave
+   exactly as before.                                                            */
+function siteKinds(site) {
+  return (site && site.tableKinds && site.tableKinds.length) ? site.tableKinds : null;
+}
+function rawSetsFor(site, mode) {
+  if (mode === 'yp' && site.ypSets && site.ypSets !== 'same') return site.ypSets;
+  if (mode === 'r' && site.rSets && site.rSets !== 'same') return site.rSets;
+  return site.sets || [];
+}
+function resolveKind(site, kind) {
+  var ks = siteKinds(site);
+  if (!ks) return null;
+  if (kind) { for (var i = 0; i < ks.length; i++) if (ks[i].k === kind) return kind; }
+  return ks[0].k;
+}
+function kindLabel(site, kind) {
+  var ks = siteKinds(site);
+  if (!ks) return '';
+  for (var i = 0; i < ks.length; i++) if (ks[i].k === kind) return ks[i].label || kind;
+  return kind || '';
+}
+function kindNote(site, kind) {
+  var ks = siteKinds(site);
+  if (!ks) return '';
+  for (var i = 0; i < ks.length; i++) if (ks[i].k === kind) return ks[i].note || '';
+  return '';
+}
+function kindsFor(site, mode) {
+  var ks = siteKinds(site);
+  if (!ks) return [null];
+  var pool = rawSetsFor(site, mode);
+  var modeHit = pool.filter(function (s) { return modeAllows(s.mode, mode); });
+  if (!modeHit.length) modeHit = pool.filter(function (s) { return !s.mode; });
+  var out = [];
+  ks.forEach(function (d) {
+    for (var i = 0; i < modeHit.length; i++) if (modeHit[i].kind === d.k) { out.push(d.k); return; }
+  });
+  return out.length ? out : [null];
+}
+function tableProvenance(site, mode, kind) {
+  var ks = siteKinds(site);
+  if (ks && kindsFor(site, mode).indexOf(resolveKind(site, kind)) < 0) return 'none';
   if (mode === 'c') {
-    /* A site may ship a deliberately narrow slice of the protocol - breast, for
-       example, is built here as pathologic TNM only, because the user scoped out
-       the clinical and biomarker-dependent tables. That is a scope decision, not
-       a claim that AJCC 8 publishes no clinical breast table, so noCTbl means
-       "not built in this release", and the mode must explain itself via noStage
-       or reject rather than returning silence. */
+    /* A site may ship a deliberately narrow slice of the protocol, so noCTbl
+       means "not built in this release" and the mode must explain itself via
+       noStage or reject rather than returning silence. */
     if (site.noCTbl) return 'none';
     return 'published';
   }
@@ -324,9 +391,10 @@ function tableProvenance(site, mode) {
   }
   return 'published';
 }
-function provenanceNote(site, mode) {
-  if (tableProvenance(site, mode) !== 'primary') return null;
+function provenanceNote(site, mode, kind) {
+  if (tableProvenance(site, mode, kind) !== 'primary') return null;
   var ed = (site.ed && site.ed.label) ? site.ed.label : 'the cited edition';
+  var which = (kind && kindLabel(site, kind)) ? kindLabel(site, kind).toLowerCase() + ' ' : '';
   if (mode === 'r') {
     return 'RECURRENT DISEASE, ASSERTED BY THE USER. ' + ed + ' publishes no recurrent (r) stage-group table for ' +
       site.name + ', so this group is derived from the primary protocol BY CONVENTION and is not a published AJCC ' +
@@ -335,15 +403,25 @@ function provenanceNote(site, mode) {
       'interval, and cannot be inferred from TNM categories.';
   }
   return 'POST-NEOADJUVANT DISEASE, ASSERTED BY THE USER. ' + ed + ' publishes no post-neoadjuvant (yp) stage-group ' +
-    'table for ' + site.name + ', so this group is derived from the primary protocol BY CONVENTION.';
+    'table for ' + site.name + ', so this ' + which + 'group is derived from the primary protocol BY CONVENTION.';
 }
 function setsFor(site, mode, input) {
-  var pool = [];
-  if (mode === 'yp' && site.ypSets && site.ypSets !== 'same') pool = site.ypSets;
-  else if (mode === 'r' && site.rSets && site.rSets !== 'same') pool = site.rSets;
-  else if (site.sets) pool = site.sets;
+  var pool = rawSetsFor(site, mode);
   var modeHit = pool.filter(function (s) { return modeAllows(s.mode, mode); });
   if (!modeHit.length) modeHit = pool.filter(function (s) { return !s.mode; });
+  var ks = siteKinds(site);
+  if (ks) {
+    /* A family the site publishes for this basis is used strictly. If the
+       requested family has no table on this basis the pool comes back EMPTY
+       rather than silently falling back to the other family, so the refusal
+       says what is missing instead of quietly answering a different question. */
+    var want = resolveKind(site, (input && input.kind) || null);
+    if (want) {
+      var kHit = modeHit.filter(function (s) { return s.kind === want; });
+      if (!kHit.length) return [];   /* that family is not published on this basis */
+      modeHit = kHit;
+    }
+  }
   var h = (input && input.E && input.E.histo) || '';
   var histoHit = modeHit.filter(function (s) { return s.histo && s.histo.indexOf(h) >= 0; });
   if (histoHit.length) return histoHit;
@@ -356,9 +434,9 @@ function rowMatches(row, input, site, mode) {
   for (var i = 0; i < axes.length; i++) {
     var ax = axes[i];
     if (row[ax] === undefined || row[ax] === null) continue;
-    var cats = axisCats(site, row, ax);
+    var cats = axisCats(site, row, ax, mode);
     if (!cats) continue;
-    var allowed = expandSpec(row[ax], cats, axisNoParent(site, ax));
+    var allowed = expandSpec(row[ax], cats, axisNoParent(site, ax, resolveKind(site, input && input.kind)));
     if (!allowed) continue;
     if (allowed.length >= cats.length) continue;   /* spec covers every category = unconstrained */
     if (input[ax] == null || input[ax] === '') return false;
@@ -378,16 +456,74 @@ function rowMatches(row, input, site, mode) {
   return true;
 }
 /* Categories a bare parent or open-ended bound may not reach on this axis. */
-function axisNoParent(site, ax) {
-  var src = ax === 'T' ? site.T : ax === 'N' ? site.N : ax === 'M' ? site.M : ax === 'G' ? site.G : null;
-  return (src && src.noParent) || null;
+function axisNoParent(site, ax, kind) {
+  var src = axisSrc(site, ax);
+  if (!src) return null;
+  /* A category's reachability can differ between table families. Breast is the
+     case: the anatomic table gives pN1mi its own Stage IB row, while the
+     prognostic tables fold N1mi into the N0 and N1 rows by footnote, so a
+     family may override the axis-wide rule. */
+  if (kind && src.noParentByKind && src.noParentByKind[kind]) return src.noParentByKind[kind];
+  return src.noParent || null;
 }
-function axisCats(site, row, ax) {  if (row.cats && row.cats[ax]) return row.cats[ax];
-  if (ax === 'T') return site.T && site.T.cats;
-  if (ax === 'N') return site.N && site.N.cats;
-  if (ax === 'M') return site.M && site.M.cats;
-  if (ax === 'G') return (site.G && site.G.cats) || null;
+/* Clinical and pathological tables routinely reuse a category LABEL for two
+   different meanings. Breast is the clearest case: cN1a is "one clinically occult
+   node", while pN1a is "metastases in 1-3 axillary nodes, at least one >2 mm", and
+   pN0(mol+) or pN1c have no clinical counterpart at all. A single flat def map
+   cannot hold both meanings, and a single flat cats list would let a clinical row
+   swallow pathologic subdivisions. An axis may therefore declare:
+        catsByMode: { c: [...], p: [...] }   which categories exist on this basis
+        defByMode:  { c: {...}, p: {...} }  what each one means on this basis
+   yp and r take the PATHOLOGICAL list and wording, because those bases are
+   pathological by definition. Anything a mode does not declare falls back to the
+   shared cats/def, so every site that shipped before this feature is unchanged. */
+function axisBasis(mode) { return (mode === 'yp' || mode === 'r') ? 'p' : 'c'; }
+function axisSrc(site, ax) {
+  if (ax === 'T') return site.T;
+  if (ax === 'N') return site.N;
+  if (ax === 'M') return site.M;
+  if (ax === 'G') return site.G;
   return null;
+}
+function axisCatList(site, ax, mode) {
+  var src = axisSrc(site, ax);
+  if (!src) return [];
+  if (src.catsByMode) {
+    if (mode && src.catsByMode[mode]) return src.catsByMode[mode];
+    var b = axisBasis(mode);
+    if (src.catsByMode[b]) return src.catsByMode[b];
+  }
+  return src.cats || [];
+}
+/* Every category the axis knows about on any basis. Used only by whole-site
+   sanity checks, where a spec that expands to nothing ANYWHERE is the defect. */
+function axisCatListUnion(site, ax) {
+  var src = axisSrc(site, ax);
+  if (!src) return [];
+  var out = (src.cats || []).slice(0);
+  if (src.catsByMode) {
+    for (var k in src.catsByMode) {
+      if (!Object.prototype.hasOwnProperty.call(src.catsByMode, k)) continue;
+      src.catsByMode[k].forEach(function (c) { if (out.indexOf(c) < 0) out.push(c); });
+    }
+  }
+  return out;
+}
+function axisDef(site, ax, cat, mode) {
+  var src = axisSrc(site, ax);
+  if (!src || cat === undefined || cat === null || cat === '') return '';
+  if (src.defByMode) {
+    if (mode && src.defByMode[mode] && src.defByMode[mode][cat]) return src.defByMode[mode][cat];
+    var b = axisBasis(mode);
+    if (src.defByMode[b] && src.defByMode[b][cat]) return src.defByMode[b][cat];
+  }
+  return (src.def && src.def[cat]) ? src.def[cat] : '';
+}
+function axisCats(site, row, ax, mode) {
+  if (row.cats && row.cats[ax]) return row.cats[ax];
+  var src = axisSrc(site, ax);
+  if (!src) return null;
+  return axisCatList(site, ax, mode);
 }
 /* "Aggregate" categories (e.g. bare T1 when T1a/T1b/T1c also exist, or bare M1
    when M1a/M1b/M1c do) are offered in the picker so the user can say "I only
@@ -477,11 +613,24 @@ var DERIVERS = {};
      (b) every category used in a row really exists in the site
      (c) no assignable combination is left unstaged
    -------------------------------------------------------------------------- */
-function eAxisList(site) {
+/* An E field may declare `kinds: ['prognostic']` when only one table family
+   grades on it. Breast is the case: the anatomic table ignores HER2, ER and PR
+   entirely, so asking for them there would demand a fact the table never uses. */
+function eAxisList(site, kind) {
   var f = site.E || [];
   var res = [];
-  for (var i = 0; i < f.length; i++) res.push({ k: f[i].k, opts: (f[i].opts && f[i].opts.length) ? f[i].opts : [null] });
+  for (var i = 0; i < f.length; i++) {
+    if (f[i].kinds && (!kind || f[i].kinds.indexOf(kind) < 0)) continue;
+    res.push({ k: f[i].k, opts: (f[i].opts && f[i].opts.length) ? f[i].opts : [null] });
+  }
   return res;
+}
+/* Same gate for a whole axis: a G axis may belong to one family only. */
+function axisKindOk(site, ax, kind) {
+  var src = axisSrc(site, ax);
+  if (!src) return false;
+  if (src.kinds && (!kind || src.kinds.indexOf(kind) < 0)) return false;
+  return true;
 }
 function eCartesian(axes) {
   if (!axes.length) return [{}];
@@ -499,10 +648,6 @@ function eCartesian(axes) {
 function validateSite(site) {
   var out = { id: site.id, name: site.name, errors: [], warns: [], stats: {} };
   var modes = ['c', 'p', 'yp', 'r'];
-  var T = (site.T && site.T.cats) || [], N = (site.N && site.N.cats) || [],
-      M = (site.M && site.M.cats) || [], G = (site.G && site.G.cats) || [];
-  var eAxes = eAxisList(site);
-  var eSets = eCartesian(eAxes);
 
   function shared(mode) {
     if (mode === 'yp' && site.ypSets === 'same') return true;
@@ -521,6 +666,24 @@ function validateSite(site) {
     if (d && d.combo) declaredGaps[d.combo] = d.why || 'not assigned by the published table';
   });
   var usedDeclared = {};
+  /* The gap key names a combination. A site that offers more than one table
+     family, or that grades on axes beyond histologic type, needs the basis and
+     the extra values IN the key, because two different combinations can then
+     share the same T/N/M/G. Sites that do not keep the original short key, so
+     every sourceGaps declaration already written against it stays valid. */
+  var preciseKey = !!siteKinds(site) || (site.E || []).some(function (f) { return f.k !== 'histo'; });
+  function eKey(e) {
+    if (!e) return '';
+    var out = [], ks = Object.keys(e).sort();
+    for (var i = 0; i < ks.length; i++) if (e[ks[i]] != null && e[ks[i]] !== '') out.push(ks[i] + '=' + e[ks[i]]);
+    return out.join(',');
+  }
+  function gapKeyFor(mode, kind, t, n, m, g, e) {
+    if (preciseKey) {
+      return [mode + ':' + (kind || '-'), t, n, m, g || '', eKey(e)].filter(Boolean).join(' ');
+    }
+    return [t, n, m, g || '', (e && e.histo) || ''].filter(Boolean).join(' ');
+  }
   for (var mi = 0; mi < modes.length; mi++) {
     var mode = modes[mi];
     if (shared(mode)) continue;
@@ -528,7 +691,23 @@ function validateSite(site) {
        refuses every combination by design, and the branch above already demands a
        noStage or reject explanation for it. Walking it here would only manufacture
        thousands of meaningless gaps, so it is not enumerated. */
-    if (tableProvenance(site, mode) === 'none') continue;
+    if (tableProvenance(site, mode, resolveKind(site, null)) === 'none') continue;
+    /* Enumerate THIS basis with THIS basis's categories, and within the basis
+       walk each published table family separately: the anatomic and the
+       prognostic table answer different questions about the same categories. */
+    var klist = kindsFor(site, mode);
+    for (var ki = 0; ki < klist.length; ki++) {
+    var kind = klist[ki];
+    if (tableProvenance(site, mode, kind) === 'none') continue;
+    /* The biomarker axes belong to the family that grades on them, so the
+       enumeration is rebuilt per family rather than shared across them. */
+    var eSets = eCartesian(eAxisList(site, kind));
+    /* Enumerate THIS basis with THIS basis's categories. A site that declares
+       catsByMode has different categories in play clinically than pathologically,
+       and walking one shared list would test categories that cannot legally
+       appear on this basis (and miss ones that must). */
+    var T = axisCatList(site, 'T', mode), N = axisCatList(site, 'N', mode),
+        M = axisCatList(site, 'M', mode), G = axisCatList(site, 'G', mode);
     for (var ei = 0; ei < eSets.length; ei++) {
       for (var ti = 0; ti < T.length; ti++) {
         for (var ni = 0; ni < N.length; ni++) {
@@ -537,12 +716,12 @@ function validateSite(site) {
               var inp = {
                 T: T[ti], N: N[ni], M: M[mi2],
                 G: G.length ? G[gi] : null,
-                E: eSets[ei]
+                E: eSets[ei], kind: kind
               };
               checked++;
               if (!catAllowed(site, 'T', T[ti], mode) || !catAllowed(site, 'N', N[ni], mode) ||
                   !catAllowed(site, 'M', M[mi2], mode) || (G.length && !catAllowed(site, 'G', G[gi], mode))) { unstaged++; continue; }
-              var gapKey = [T[ti], N[ni], M[mi2], G.length ? G[gi] : '', (eSets[ei].histo || '')].filter(Boolean).join(' ');
+              var gapKey = gapKeyFor(mode, kind, T[ti], N[ni], M[mi2], G.length ? G[gi] : '', eSets[ei]);
               /* A site may EXPLAIN a combination through noStage/reject instead of
                  leaving it bare. That is still a documented refusal, so a declared
                  source gap is satisfied by either route. */
@@ -556,7 +735,7 @@ function validateSite(site) {
               if (!rows.length) {
                 unstaged++;
                 if (declaredGaps[gapKey] !== undefined) { usedDeclared[gapKey] = true; continue; }
-                if (gaps.length < 25) gaps.push([mode, T[ti], N[ni], M[mi2], G.length ? G[gi] : '', (eSets[ei].histo || '')].filter(Boolean).join(' '));
+                if (gaps.length < 25) gaps.push(gapKey);
                 continue;
               }
               var labels = {}, distinct = [];
@@ -564,14 +743,14 @@ function validateSite(site) {
               if (distinct.length > 1) {
                 ambiguous++;
                 if (out.errors.length < 40) {
-                  out.errors.push('AMBIGUOUS [' + [mode, T[ti], N[ni], M[mi2], G.length ? G[gi] : '', eSets[ei].histo].filter(Boolean).join(' ') +
-                    '] -> ' + distinct.join(' / '));
+                  out.errors.push('AMBIGUOUS [' + gapKey + '] -> ' + distinct.join(' / '));
                 }
               }
             }
           }
         }
       }
+    }
     }
   }
   /* Per-mode table coverage. The exhaustive enumeration above deliberately
@@ -580,32 +759,39 @@ function validateSite(site) {
      without the loop noticing. Assert a usable table exists for every mode. */
   var perMode = {};
   ['c', 'p', 'yp', 'r'].forEach(function (mode) {
-    var prov = tableProvenance(site, mode);
-    perMode['prov_' + mode] = prov;
-    var pool = setsFor(site, mode, null);
+    kindsFor(site, mode).forEach(function (kind) {
+    var suffix = kind ? ':' + kind : '';
+    var prov = tableProvenance(site, mode, kind);
+    perMode['prov_' + mode + suffix] = prov;
+    var pool = setsFor(site, mode, { kind: kind });
     if (!pool || !pool.length) {
       if (prov === 'none') {
-        perMode['tbl_' + mode] = 'none (declared)';
+        perMode['tbl_' + mode + suffix] = 'none (declared)';
         if (typeof site.noStage !== 'function' && typeof site.reject !== 'function') {
-          out.errors.push('MODE ' + mode.toUpperCase() + ' is declared to have no published stage table, ' +
+          out.errors.push('MODE ' + mode.toUpperCase() + (kind ? ' / ' + kind.toUpperCase() : '') +
+            ' is declared to have no published stage table, ' +
             'but the site supplies neither noStage nor reject, so a user selecting that mode would get silence.');
         }
         return;
       }
-      out.errors.push('MODE ' + mode.toUpperCase() + ' HAS NO STAGE TABLE: setsFor() returned an empty pool. ' +
+      out.errors.push('MODE ' + mode.toUpperCase() + (kind ? ' / ' + kind.toUpperCase() : '') +
+        ' HAS NO STAGE TABLE: setsFor() returned an empty pool. ' +
         'Declare cSets/ypSets/rSets with the real table, make the primary set accept this mode, or declare ' +
         'noCTbl/noYpTbl/noRTbl if this release intentionally ships no table for it.');
       return;
     }
     if (prov === 'none') {
-      out.errors.push('MODE ' + mode.toUpperCase() + ' is declared as having no published stage table ' +
+      out.errors.push('MODE ' + mode.toUpperCase() + (kind ? ' / ' + kind.toUpperCase() : '') +
+        ' is declared as having no published stage table ' +
         '(no' + mode.toUpperCase() + 'Tbl) but a table was found. Remove the declaration or the table.');
       return;
     }
     var n = 0;
     pool.forEach(function (s) { n += (s.rows || []).length; });
-    if (!n) out.errors.push('MODE ' + mode.toUpperCase() + ' resolves to a stage set with zero rows.');
-    perMode['rows_' + mode] = n;
+    if (!n) out.errors.push('MODE ' + mode.toUpperCase() + (kind ? ' / ' + kind.toUpperCase() : '') +
+      ' resolves to a stage set with zero rows.');
+    perMode['rows_' + mode + suffix] = n;
+    });
   });
 
   var allSets = [].concat(site.sets || [],
@@ -615,7 +801,7 @@ function validateSite(site) {
     (s.rows || []).forEach(function (r) {
       ['T', 'N', 'M', 'G'].forEach(function (ax) {
         if (r[ax] === undefined || r[ax] === null) return;
-        var cats = axisCats(site, r, ax);
+        var cats = axisCatListUnion(site, ax);
         if (!cats) return;
         if (expandSpec(r[ax], cats, axisNoParent(site, ax)).length === 0 && String(r[ax]).trim() !== '') {
           out.warns.push('set ' + (s.id || s.label) + ' row ' + r.g + ': spec "' + r[ax] + '" expands to nothing on axis ' + ax);
@@ -658,7 +844,7 @@ function siteHasT0(site) {
     (site.rSets && site.rSets !== 'same') ? site.rSets : []).forEach(function (s) {
     (s.rows || []).forEach(function (r) {
       if (r.T === undefined || r.T === null) return;
-      if (expandSpec(r.T, (site.T && site.T.cats) || [], axisNoParent(site, 'T')).indexOf('T0') >= 0) hit = true;
+      if (expandSpec(r.T, axisCatListUnion(site, 'T'), axisNoParent(site, 'T')).indexOf('T0') >= 0) hit = true;
     });
   });
   site._hasT0 = hit;
@@ -818,12 +1004,13 @@ function resolveStage(site, mode, input) {
   /* A checked (m) box belongs on the T category, e.g. pT3(m). */
   var tSuffix = ctx.multipleFoci ? ['m'] : [];
   var modeUsed = contextMode(mode, ctx);
+  var kindUsed = resolveKind(site, input.kind);
   var res = {
     site: site, mode: mode, modeUsed: modeUsed, input: input,
     prefix: {}, labels: {}, stage: null, parent: null,
     matched: null, setLabel: null, notes: [], warnings: [], suffix: '',
-    context: ctx,
-    provenance: tableProvenance(site, modeUsed), modeAsserted: true
+    context: ctx, kind: kindUsed, kindLabel: kindLabel(site, kindUsed),
+    provenance: tableProvenance(site, modeUsed, kindUsed), modeAsserted: true
   };
   if (ctx.suffix.length) res.suffix = ctx.suffix.join(',');
   /* An asserted recurrence that is not staged in r mode still needs the r
@@ -887,6 +1074,11 @@ function resolveStage(site, mode, input) {
   var rows = matchingRows(site, modeUsed, input);
   if (!rows.length) {
     var why = noStageReason(site, input, modeUsed);
+    if (!why && siteKinds(site) && kindsFor(site, modeUsed).indexOf(kindUsed) < 0) {
+      why = 'No ' + kindLabel(site, kindUsed).toLowerCase() + ' stage-group table is published on the ' +
+            (modeUsed === 'p' ? 'pathological' : modeUsed === 'c' ? 'clinical' : modeUsed) +
+            ' basis in ' + site.ed.label + ', so no group is offered for this basis. Pick the other table above.';
+    }
     res.noStage = true;
     res.warnings.push(why || ('No prognostic stage group matches this combination in ' + site.name + '.'));
   } else {
@@ -904,7 +1096,7 @@ function resolveStage(site, mode, input) {
       /* Only annotate a group that was actually produced. If the mode is r or
          yp and no table is published for it, say so instead of letting a
          convention-derived group read as an AJCC-published one. */
-      var pn = provenanceNote(site, modeUsed);
+      var pn = provenanceNote(site, modeUsed, kindUsed);
       if (pn) res.warnings.push(pn);
     }
   }
@@ -1775,11 +1967,45 @@ SITES.cutaneousSCCBCC = {
   scope: 'Basal cell carcinoma and cutaneous squamous cell carcinoma of the head and neck. One prognostic stage table serves both clinical and pathologic staging; the cTNM and pTNM category definitions differ.',
   T: {
     cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
-    def: { 'TX': 'Primary tumor cannot be identified.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor <=2 cm in greatest dimension.', 'T2': 'Tumor >2 cm, but <=4 cm in greatest dimension.', 'T3': 'Tumor >4 cm in maximum dimension or minor bone erosion or perineural invasion or deep invasion.', 'T4a': 'Tumor with gross cortical bone/marrow invasion.', 'T4b': 'Tumor with skull base invasion and/or skull base foramen involvement.', 'T4': 'Tumor with gross cortical bone/marrow, skull base invasion and/or skull base foramen invasion.' }
+    def: { 'TX': 'Primary tumor cannot be identified.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor <=2 cm in greatest dimension.', 'T2': 'Tumor >2 cm, but <=4 cm in greatest dimension.', 'T3': 'Tumor >4 cm in maximum dimension or minor bone erosion or perineural invasion or deep invasion. FOOTNOTE b: deep invasion is defined as invasion beyond the subcutaneous fat or >6 mm (as measured from the granular layer of adjacent normal epidermis to the base of the tumor); perineural invasion for T3 classification is defined as tumor cells within the nerve sheath of a nerve lying deeper than the dermis or measuring >=0.1 mm in caliber, or presenting with clinical or radiographic involvement of named nerves without skull base invasion or transgression.', 'T4a': 'Tumor with gross cortical bone/marrow invasion.', 'T4b': 'Tumor with skull base invasion and/or skull base foramen involvement.', 'T4': 'Tumor with gross cortical bone/marrow, skull base invasion and/or skull base foramen invasion.' }
   },
+  /* AJCC 8 publishes TWO separate N tables here - Table 2 (pN) and Table 3 (cN) -
+     and they are not the same table. cN cannot use microscopic ENE, so cN2/cN3
+     are defined by size and laterality alone, while pN2/pN3 fold in ENE-positive
+     disease. Both publish the N2a/N2b/N2c and N3a/N3b subdivisions, so both
+     bases get the full ten categories; collapsing them into one flat list would
+     offer pathological wording to a clinical case. */
   N: {
-    cats: ['NX', 'N0', 'N1', 'N2', 'N3'],
-    def: { 'NX': 'Regional lymph nodes cannot be assessed.', 'N0': 'No regional lymph node metastasis.', 'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE negative.', 'N2': 'CLINICAL: Metastasis in a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE negative; or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE negative; or in bilateral and contralateral lymph nodes, none >6 cm in greatest dimension and ENE negative.  PATHOLOGIC: Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE positive; or >3 cm but <=6 cm in greatest dimension and ENE negative; or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE negative; or in bilateral or contralateral lymph node(s), none >6 cm in greatest dimension, ENE negative.', 'N3': 'CLINICAL: Metastasis in a lymph node >6 cm in greatest dimension and ENE negative; or metastasis in any node(s) and clinically overt ENE (ENE positive).  PATHOLOGIC: Metastasis in a lymph node >6 cm in greatest dimension and ENE negative; or in a single ipsilateral node >3 cm in greatest dimension and ENE positive; or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE-positive status; or a single contralateral node of any size and ENE positive.' }
+    catsByMode: {
+      c: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b'],
+      p: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b']
+    },
+    defByMode: {
+      c: {
+        'NX': 'Regional lymph nodes cannot be assessed.',
+        'N0': 'No regional lymph node metastasis.',
+        'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE negative.',
+        'N2': 'Metastasis in a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE negative; or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE negative; or in bilateral and contralateral lymph nodes, none >6 cm in greatest dimension and ENE negative.',
+        'N2a': 'Metastasis in a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE negative.',
+        'N2b': 'Metastasis in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE negative.',
+        'N2c': 'Metastasis in bilateral and contralateral lymph nodes, none >6 cm in greatest dimension and ENE negative.',
+        'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE negative; or metastasis in any node(s) and clinically overt ENE (ENE positive).',
+        'N3a': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE negative.',
+        'N3b': 'Metastasis in any node(s) and ENE positive.'
+      },
+      p: {
+        'NX': 'Regional lymph nodes cannot be assessed.',
+        'N0': 'No regional lymph node metastasis.',
+        'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE negative.',
+        'N2': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE positive; or >3 cm but <=6 cm in greatest dimension and ENE negative; or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE negative; or in bilateral or contralateral lymph node(s), none >6 cm in greatest dimension, ENE negative.',
+        'N2a': 'Metastasis in single ipsilateral node <=3 cm in greatest dimension and ENE positive; or a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE negative.',
+        'N2b': 'Metastasis in multiple ipsilateral nodes, none >6 cm in greatest dimension and ENE negative.',
+        'N2c': 'Metastasis in bilateral or contralateral lymph node(s), none >6 cm in greatest dimension and ENE negative.',
+        'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE negative; or in a single ipsilateral node >3 cm in greatest dimension and ENE positive; or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE-positive status; or a single contralateral node of any size and ENE positive.',
+        'N3a': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE negative.',
+        'N3b': 'Metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE positive; or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE-positive status; or a single contralateral node of any size and ENE positive.'
+      }
+    }
   },
   M: {
     cats: ['M0', 'M1'],
@@ -1788,7 +2014,7 @@ SITES.cutaneousSCCBCC = {
   noStage: function (inp) {
     if (inp.T === 'Tis' && inp.N && inp.N !== 'N0') return 'AJCC 8 Table 5 defines Stage 0 only as Tis N0 M0. No stage group is assigned to carcinoma in situ with regional nodal metastasis.';
     if (inp.T === 'TX' && inp.M === 'M0') return 'AJCC 8 Table 5 contains no row for TX with M0; the primary tumour cannot be assessed. TX with M1 is Stage IV.';
-    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4a' && inp.T !== 'T4b') return 'AJCC 8 Table 5 contains no row for NX with M0 outside T4a/T4b (both of which are "any N").';
+    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4' && inp.T !== 'T4a' && inp.T !== 'T4b') return 'AJCC 8 Table 5 contains no row for NX with M0 outside the T4 row, which is printed "T4, Any N, M0" and therefore does cover NX. Bare T4 is the aggregate of T4a and T4b, so all three T4 categories resolve.';
     return null;
   },
   sets: [
@@ -1810,7 +2036,7 @@ SITES.cutaneousSCCBCC = {
   ],
   ypSets: 'same', rSets: 'same',
   sources: ['https://www.cancer.gov/types/skin/hp/skin-treatment-pdq'],
-  notes: 'AJCC 8 uses a SINGLE prognostic stage table for cutaneous SCC and BCC of the head and neck; the clinical and pathologic N definitions differ but the stage groups are shared. N2 and N3 are bare-parent categories here: pN2a/N2b/N2c and pN3a/N3b are their subdivisions and are reached through the parent, which is why they are not offered as separate stage determinants. Tis with any N other than N0, TX with M0, and NX with M0 are genuine AJCC gaps and are reported as unassignable rather than being assigned a stage.'
+  notes: 'AJCC 8 uses a SINGLE prognostic stage table for cutaneous SCC and BCC of the head and neck; the clinical and pathologic N definitions differ but the stage groups are shared. The stage table names only the bare parents N2 and N3, and a bare parent in this engine also reaches its subdivisions, so pN2a/N2b/N2c, pN3a/N3b and their clinical counterparts all resolve through the parent row rather than needing one. Tis with any N other than N0, TX with M0, and NX with M0 are genuine AJCC gaps and are reported as unassignable rather than being assigned a stage. ENE SUFFIX: per footnote b of Tables 2 and 3, a designation of U or L may be added to any N category to indicate metastasis above the lower border of the cricoid (U) or below it (L); clinical and pathological ENE should be recorded as ENE negative or ENE positive. The U/L designation is a reporting suffix and does not change the stage group, so it is not offered as a stage determinant. RISK STRATIFICATION NOT BUILT: the low-risk / high-risk stratification often asked for alongside BCC and SCC staging is an NCCN framework, not an AJCC one. No AJCC-sourced risk table exists in the retrieved source, so it is deliberately not reconstructed here; reproducing it would require an NCCN source.'
 };
 
 SITES.eyelid = {
@@ -1951,6 +2177,64 @@ SITES.merkelCell = {
   notes: 'AJCC 8 gives Merkel cell carcinoma SEPARATE clinical and pathologic stage tables, and the pathologic one subdivides Stage III into IIIA/IIIB while the clinical one does not. cN1 has no pathologic counterpart; pN1a and pN1b have no clinical counterpart, so those categories are mode-restricted. pM1 is subdivided into pM1a (distant skin/subcutaneous tissue/nodes), pM1b (lung) and pM1c (all other distant sites); cM1 is not subdivided, so M1a-c are pathologic-only. The Stage IIIA rows for pN1a(sn) and pN1a are the same category after the (sn) postscript is removed and are stored once.'
 };
 
+/* Hand-added from the SITE "LIP AND ORAL CAVITY" block of ajcc8_tnm_staging.txt
+   (lines 433-474). gen-hn.ps1 is not present in this workspace, so unlike the
+   generated blocks above this one was transcribed by hand from the same
+   transcription; rows and definitions are verbatim and nothing is inferred. */
+SITES.lipOralCavity = {
+  id: 'lipOralCavity', name: 'Lip and oral cavity', group: 'Head & neck',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'Carcinoma of the lip and oral cavity. BASE OF TONGUE IS NOT STAGED HERE: AJCC 8 stages base of tongue under oropharyngeal carcinoma, so a base-of-tongue primary belongs in one of the oropharynx entries, chosen by p16 status. One stage-group table (Tables 4-8) serves both clinical and pathologic staging, and it is the same table used for p16-negative oropharynx, hypopharynx and larynx. DOI = depth of invasion; ENE = extranodal extension.',
+  T: {
+    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    agg: ['T4'],
+   /* kept in agg: parent category staged only via its subdivisions, so bare T4 has no complete row */
+    def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor <=2 cm with DOI <=5 mm.', 'T2': 'Tumor <=2 cm with DOI >5 mm or tumor >2 cm and <=4 cm with DOI <=10 mm.', 'T3': 'Tumor >2 cm and <=4 cm with DOI >10 mm or tumor >4 cm with DOI <=10 mm.', 'T4': 'Moderately advanced or very advanced local disease.', 'T4a': 'Moderately advanced local disease. Tumor >4 cm with DOI >10 mm or tumor invades adjacent structures only (e.g., through cortical bone of the mandible or maxilla or involves the maxillary sinus or skin of the face).', 'T4b': 'Very advanced local disease. Tumor invades masticator space, pterygoid plates, or skull base and/or encases the internal carotid artery.' },
+    notes: 'DOI IS USED TOGETHER WITH SIZE TO SET T, AND IT IS DEPTH OF INVASION, NOT TUMOUR THICKNESS. Superficial erosion of bone or of the tooth socket, alone, by a gingival primary is explicitly NOT sufficient to classify a tumour as T4.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b'],
+    def: { 'NX': 'Regional lymph nodes cannot be assessed.', 'N0': 'No regional lymph node metastasis.', 'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(-).', 'N2': 'Metastasis in a single ipsilateral lymph node <=3 cm in greatest dimension and ENE(+); or >3 cm but <=6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or in bilateral or contralateral lymph node(s), none >6 cm in greatest dimension, and ENE(-).', 'N2a': 'Metastasis in a single ipsilateral node <=3 cm in greatest dimension and ENE(+); or a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE(-).', 'N2b': 'Metastases in multiple ipsilateral nodes, none >6 cm in greatest dimension, and ENE(-).', 'N2c': 'Metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension, and ENE(-).', 'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE(+); or in a single contralateral node of any size and ENE(+).', 'N3a': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-).', 'N3b': 'Metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE(+); or in a single contralateral node of any size and ENE(+).' },
+    notes: 'A U or L designation may be added to any N category to record metastasis above (U) or below (L) the lower border of the cricoid; it does not change the stage group. ENE should be recorded as ENE(-) or ENE(+).'
+  },
+  M: {
+    cats: ['M0', 'M1'],
+    def: { 'M0': 'No distant metastasis.', 'M1': 'Distant metastasis.' }
+  },
+  noStage: function (inp) {
+    if (inp.M !== 'M0') return null;   /* Any T, Any N, M1 is Stage IVC */
+    if (inp.T === 'TX') return 'AJCC 8 Tables 4-8 contain no row for TX with M0; the primary tumour cannot be assessed. TX with M1 is Stage IVC.';
+    if (inp.T === 'T4') return 'The bare T4 category is a parent only. The AJCC 8 lip and oral cavity table stages T4a (moderately advanced: tumour >4 cm with DOI >10 mm, or invasion of the cortical bone of the mandible or maxilla, the maxillary sinus, or the skin of the face) as IVA with N0-N2, and T4b (very advanced: masticator space, pterygoid plates, skull base, or encasement of the internal carotid artery) as IVB with any N. Bare T4 has no row of its own, so choose the subdivision that was actually reported.';
+    if (inp.T === 'Tis' && (inp.N === 'N1' || /^N2/.test(inp.N || ''))) return 'AJCC 8 Tables 4-8 define Stage 0 only as Tis N0 M0, and Tis appears nowhere else in the table except "any T, N3, M0" (IVB) and "any T, any N, M1" (IVC). There is no row for Tis with N1 or N2, so no stage group is assigned to carcinoma in situ with regional nodal metastasis below N3.';
+    if (inp.N === 'NX' && inp.T !== 'T4a' && inp.T !== 'T4b') return 'AJCC 8 Tables 4-8 contain no row for NX with M0 outside T4a/T4b (T4b is written as "any N"). Regional lymph nodes cannot be assessed; NX with M1 is Stage IVC.';
+    return null;
+  },
+  sets: [
+    { id: 'lipOral_tnm', label: 'Tables 4-8. Lip and oral cavity stage groups (applies to both cTNM and pTNM)', rows: [
+      { g: '0', T: 'Tis', N: 'N0', M: 'M0' },
+      { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
+      { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N0', M: 'M0' },
+      { g: 'III', T: 'T1', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T2', N: 'N1', M: 'M0' },
+      { g: 'III', T: 'T3', N: 'N1', M: 'M0' },
+      { g: 'IVA', T: 'T4a', N: 'N0', M: 'M0' },
+      { g: 'IVA', T: 'T4a', N: 'N1', M: 'M0' },
+      { g: 'IVA', T: 'T1', N: 'N2', M: 'M0' },
+      { g: 'IVA', T: 'T2', N: 'N2', M: 'M0' },
+      { g: 'IVA', T: 'T3', N: 'N2', M: 'M0' },
+      { g: 'IVA', T: 'T4a', N: 'N2', M: 'M0' },
+      { g: 'IVB', T: 'Any T', N: 'N3', M: 'M0' },
+      { g: 'IVB', T: 'T4b', N: 'Any N', M: 'M0' },
+      { g: 'IVC', T: 'Any T', N: 'Any N', M: 'M1' },
+    ]},
+  ],
+  ypSets: 'same',
+  rSets: 'same',
+  sources: ['https://www.cancer.gov/types/head-and-neck/hp/adult/lip-mouth-treatment-pdq'],
+  notes: 'DOI DRIVES T AS MUCH AS SIZE DOES. AJCC 8 footnote b: clinical and pathological DEPTH OF INVASION is now used in conjunction with size to determine the T category, and DOI is depth of invasion, not tumour thickness. That is why T1, T2 and T3 here are all written as a size-and-DOI pair rather than as size alone, and why there are no T1a/T1b or T2a/T2b subdivisions at this site. Footnote d: superficial erosion of bone or of the tooth socket, alone, by a gingival primary is not sufficient to classify a tumour as T4. THE SOURCE TRANSCRIBES THE PATHOLOGICAL N SET ONLY (its Table 2 is "Definition of Regional Lymph Nodes - Pathological"), so that is the wording offered here; the clinical N wording is not transcribed and is not invented. A U or L postscript may be added to any N category to place the metastasis above or below the lower border of the cricoid; it is recorded, and it does not change the stage group. N2 and N3 are bare parents whose subdivisions all resolve to the same group as the parent, so unlike the vulvar entry there is no ambiguity here: N2a, N2b and N2c are all reached through the N2 row and are all IVA with T1-T3, and N3a and N3b are reached through the N3 row and are both IVB. Bare T4 IS a parent only, because T4a and T4b sit in different groups (IVA and IVB), so bare T4 is refused with an explanation. Tis WITH N1 OR N2 M0 HAS NO ROW in the published table: Tis appears only in Stage 0, in the "any T, N3, M0" row and in the "any T, any N, M1" row, so that combination is refused rather than rounded to a neighbour. There is no T0 category in the source for this site. A single stage table serves all assessment bases, so yp and r reuse it BY CONVENTION and are labelled as such.'
+};
+
 SITES.oropharynxHPVneg = {
   id: 'oropharynxHPVneg', name: 'Oropharynx, p16-negative', group: 'Head & neck',
   ed: { v: 8, label: 'AJCC 8th edition' },
@@ -2008,9 +2292,41 @@ SITES.hypopharynx = {
     agg: ['T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor limited to one subsite of hypopharynx and/or <=2 cm in greatest dimension.', 'T2': 'Tumor invades more than one subsite of hypopharynx or an adjacent site, or measures >2 cm but <=4 cm in greatest dimension without fixation of hemilarynx.', 'T3': 'Tumor >4 cm in greatest dimension or with fixation of hemilarynx or extension to esophageal mucosa.', 'T4a': 'Moderately advanced local disease. Tumor invades thyroid/cricoid cartilage, hyoid bone, thyroid gland, esophageal muscle, or central compartment soft tissue.', 'T4b': 'Very advanced local disease. Tumor invades prevertebral fascia, encases carotid artery, or involves mediastinal structures.', 'T4': 'Moderately advanced and very advanced local disease.' }
   },
+  /* Source Table 2 gives SEPARATE cN and pN criteria. They are transcribed
+     separately because the pN criteria are strictly broader: pN2 and pN3 can use
+     microscopic ENE, so pN2a admits a <=3 cm ENE-positive node where cN2a cannot.
+     Both bases publish the N2a/N2b/N2c and N3a/N3b subdivisions. */
   N: {
-    cats: ['NX', 'N0', 'N1', 'N2', 'N3'],
-    def: { 'NX': 'Regional lymph nodes cannot be assessed.', 'N0': 'No regional lymph node metastasis.', 'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(-).', 'N2': 'CLINICAL: Metastasis in a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).  PATHOLOGIC: Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(+); or >3 cm but <=6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).', 'N3': 'CLINICAL: Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in any node(s) and clinically overt ENE(+).  PATHOLOGIC: Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE(+); or a single contralateral node of any size and ENE(+).' }
+    catsByMode: {
+      c: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b'],
+      p: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b']
+    },
+    defByMode: {
+      c: {
+        'NX': 'Regional lymph nodes cannot be assessed.',
+        'N0': 'No regional lymph node metastasis.',
+        'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(-).',
+        'N2': 'Metastasis in a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2a': 'Metastasis in a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE(-).',
+        'N2b': 'Metastasis in multiple ipsilateral nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2c': 'Metastasis in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in any node(s) and clinically overt ENE(+).',
+        'N3a': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-).',
+        'N3b': 'Metastasis in any node(s) and clinically overt ENE(+).'
+      },
+      p: {
+        'NX': 'Regional lymph nodes cannot be assessed.',
+        'N0': 'No regional lymph node metastasis.',
+        'N1': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(-).',
+        'N2': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(+); or >3 cm but <=6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2a': 'Metastasis in single ipsilateral node <=3 cm in greatest dimension and ENE(+); or a single ipsilateral node >3 cm but <=6 cm in greatest dimension and ENE(-).',
+        'N2b': 'Metastases in multiple ipsilateral nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2c': 'Metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE(+); or a single contralateral node of any size and ENE(+).',
+        'N3a': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-).',
+        'N3b': 'Metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or multiple ipsilateral, contralateral, or bilateral nodes, any with ENE(+); or a single contralateral node of any size and ENE(+).'
+      }
+    }
   },
   M: {
     cats: ['M0', 'M1'],
@@ -2019,7 +2335,7 @@ SITES.hypopharynx = {
   noStage: function (inp) {
     if (inp.T === 'Tis' && inp.N && inp.N !== 'N0') return 'AJCC 8 Table 4 defines Stage 0 only as Tis N0 M0. No stage group is assigned to carcinoma in situ with regional nodal metastasis.';
     if (inp.T === 'TX' && inp.M === 'M0') return 'AJCC 8 Table 4 contains no row for TX with M0; the primary tumour cannot be assessed. TX with M1 is Stage IVC.';
-    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4a' && inp.T !== 'T4b') return 'AJCC 8 Table 4 contains no row for NX with M0 outside T4a/T4b (both of which are "any N").';
+    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4b') return 'AJCC 8 Tables 4-8 print "T4b, Any N, M0" for Stage IVB, so NX is covered for T4b alone. T4a is NOT an "any N" row: Stage IVA lists T4a explicitly against N0, N1 and N2, so NX with T4a has no row in the source. Bare T4 is the aggregate of T4a and T4b and only its T4b half is an "any N" row, so NX with bare T4 is not assigned either.';
     return null;
   },
   sets: [
@@ -2044,7 +2360,7 @@ SITES.hypopharynx = {
   ],
   ypSets: 'same', rSets: 'same',
   sources: ['https://www.cancer.gov/types/head-and-neck/hp/adult/hypopharyngeal-treatment-pdq'],
-  notes: 'The hypopharyngeal stage-group table is identical to the lip/oral cavity and p16-negative oropharynx table in AJCC 8.'
+  notes: 'The hypopharyngeal stage-group table is identical to the lip/oral cavity and p16-negative oropharynx table in AJCC 8. SEPARATE cN AND pN TABLES: source Table 2 gives distinct clinical and pathological N criteria, and the pathological ones are broader because they can use microscopic ENE - pN2a admits a <=3 cm ENE-positive node where cN2a cannot. Both bases publish the N2a/N2b/N2c and N3a/N3b subdivisions; the stage table names only the bare parents N2 and N3, and a bare parent here also reaches its subdivisions, so the subdivisions resolve through the parent row. ENE SUFFIX: a designation of U or L may be used for any N category to indicate metastasis above the lower border of the cricoid (U) or below it (L), and clinical and pathological ENE should be recorded as ENE(-) or ENE(+). The U/L designation is a reporting suffix and does not change the stage group, so it is not offered as a stage determinant. Footnote b to the T table: central compartment soft tissue includes prelaryngeal strap muscles and subcutaneous fat.'
 };
 
 SITES.larynx = {
@@ -2056,9 +2372,42 @@ SITES.larynx = {
     agg: ['T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'SUPRAGLOTTIS: tumour limited to one subsite of the supraglottis with normal vocal cord mobility. GLOTTIS: tumour limited to the vocal cord(s) (may involve the anterior or posterior commissure) with normal mobility (aggregate of T1a/T1b). SUBGLOTTIS: tumour limited to the subglottis.', 'T1a': 'Tumor limited to one vocal cord.', 'T1b': 'Tumor involves both vocal cords.', 'T2': 'SUPRAGLOTTIS: tumour invades mucosa of more than one adjacent subsite of the supraglottis or glottis or region outside the supraglottis (e.g. mucosa of base of tongue, vallecula, medial wall of pyriform sinus) without fixation of the larynx. GLOTTIS: tumour extends to the supraglottis and/or subglottis, and/or with impaired vocal cord mobility. SUBGLOTTIS: tumour extends to the vocal cord(s) with normal or impaired mobility.', 'T3': 'All three subsites: tumour limited to the larynx with vocal cord fixation and/or invades any of the paraglottic space or inner cortex of the thyroid cartilage.', 'T4a': 'Moderately advanced local disease. Supraglottis: invades through the outer cortex of the thyroid cartilage and/or invades tissues beyond the larynx (e.g. trachea, soft tissues of the neck including deep extrinsic muscle of tongue, strap muscles, thyroid or oesophagus). Glottis: invades the outer cortex of the thyroid cartilage and/or invades tissues beyond the larynx. Subglottis: invades the cricoid or thyroid cartilage and/or invades tissues beyond the larynx.', 'T4b': 'Very advanced local disease. Tumour invades the prevertebral space, and/or encases the carotid artery or mediastinal vessels.', 'T4': 'Moderately advanced or very advanced.' }
   },
+  /* Source Tables 2 and 3 are separate cN and pN tables, transcribed separately:
+     the pathological criteria are broader because they can use microscopic ENE.
+     pN2a below is transcribed exactly as the source has it - the retrieved text
+     stops mid-sentence and the ENE sign is missing. It is NOT completed by
+     inference, and the gap is flagged in the site notes. */
   N: {
-    cats: ['NX', 'N0', 'N1', 'N2', 'N3'],
-    def: { 'NX': 'Regional lymph nodes cannot be assessed.', 'N0': 'No regional lymph node metastasis.', 'N1': 'Metastasis in a single ipsilateral lymph node <=3 cm in greatest dimension and ENE(-).', 'N2': 'CLINICAL: Metastasis in a single ipsilateral node, >3 cm but not >6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).  PATHOLOGIC: Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(+); or metastasis in a single ipsilateral lymph node, >3 cm but not >6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).', 'N3': 'CLINICAL: Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in any lymph nodes(s) with clinically overt ENE(+).  PATHOLOGIC: Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or metastases in multiple ipsilateral, contralateral, or bilateral lymph nodes and any with ENE(+); or a single contralateral node of any size and ENE(+).' }
+    catsByMode: {
+      c: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b'],
+      p: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N2c', 'N3', 'N3a', 'N3b']
+    },
+    defByMode: {
+      c: {
+        'NX': 'Regional lymph nodes cannot be assessed.',
+        'N0': 'No regional lymph node metastasis.',
+        'N1': 'Metastasis in a single ipsilateral lymph node <=3 cm in greatest dimension and ENE(-).',
+        'N2': 'Metastasis in a single ipsilateral node, >3 cm but not >6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2a': 'Metastasis in a single ipsilateral node >3 cm but not >6 cm in greatest dimension and ENE(-).',
+        'N2b': 'Metastases in multiple ipsilateral nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2c': 'Metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in any lymph nodes(s) with clinically overt ENE(+).',
+        'N3a': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-).',
+        'N3b': 'Metastasis in any lymph node(s) with clinically overt ENE(+).'
+      },
+      p: {
+        'NX': 'Regional lymph nodes cannot be assessed.',
+        'N0': 'No regional lymph node metastasis.',
+        'N1': 'Metastasis in a single ipsilateral lymph node <=3 cm in greatest dimension and ENE(-).',
+        'N2': 'Metastasis in a single ipsilateral lymph node, <=3 cm in greatest dimension and ENE(+); or metastasis in a single ipsilateral lymph node, >3 cm but not >6 cm in greatest dimension and ENE(-); or metastases in multiple ipsilateral lymph nodes, none >6 cm in greatest dimension and ENE(-); or metastases in bilateral or contralateral lymph nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2a': 'Metastasis in a single ipsilateral node <=3 cm in greatest dimension and ENE(+); or metastasis in a single ipsilateral node >3 cm but not >6 cm in greatest dimension and ENE [source text ends here, ENE sign missing].',
+        'N2b': 'Metastases in multiple ipsilateral nodes, none >6 cm in greatest dimension and ENE(-).',
+        'N2c': 'Metastases in bilateral or contralateral lymph node(s), none >6 cm in greatest dimension and ENE(-).',
+        'N3': 'Metastasis in a lymph node >6 cm in greatest dimension and ENE(-); or metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or metastases in multiple ipsilateral, contralateral, or bilateral lymph nodes and any with ENE(+); or a single contralateral node of any size and ENE(+).',
+        'N3a': 'Metastasis in a lymph node, >6 cm in greatest dimension and ENE(-).',
+        'N3b': 'Metastasis in a single ipsilateral node >3 cm in greatest dimension and ENE(+); or metastases in multiple ipsilateral, contralateral, or bilateral lymph nodes and any with ENE(+); or a single contralateral node of any size and ENE(+).'
+      }
+    }
   },
   M: {
     cats: ['M0', 'M1'],
@@ -2082,7 +2431,7 @@ SITES.larynx = {
   noStage: function (inp) {
     if (inp.T === 'Tis' && inp.N && inp.N !== 'N0') return 'AJCC 8 Table 5 defines Stage 0 only as Tis N0 M0. No stage group is assigned to carcinoma in situ with regional nodal metastasis.';
     if (inp.T === 'TX' && inp.M === 'M0') return 'AJCC 8 Table 5 contains no row for TX with M0; the primary tumour cannot be assessed. TX with M1 is Stage IVC.';
-    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4a' && inp.T !== 'T4b') return 'AJCC 8 Table 5 contains no row for NX with M0 outside T4a/T4b (both of which are "any N").';
+    if (inp.N === 'NX' && inp.M === 'M0' && inp.T !== 'T4b') return 'AJCC 8 Tables 5-9 print "T4b, Any N, M0" for Stage IVB, so NX is covered for T4b alone. T4a is NOT an "any N" row: Stage IVA lists T4a explicitly against N0, N1 and N2, so NX with T4a has no row in the source. Bare T4 is the aggregate of T4a and T4b and only its T4b half is an "any N" row, so NX with bare T4 is not assigned either.';
     return null;
   },
   sets: [
@@ -2107,7 +2456,7 @@ SITES.larynx = {
   ],
   ypSets: 'same', rSets: 'same',
   sources: ['https://www.cancer.gov/types/head-and-neck/hp/adult/laryngeal-treatment-pdq'],
-  notes: 'AJCC 8 shares ONE stage-group table across all three laryngeal subsites; only the T DEFINITIONS differ. The subsite is therefore collected as a required E field so the correct T definition can be shown, and T1a/T1b are rejected outside the glottis. The stage table uses bare T1, so glottis T1a and T1b inherit Stage I.'
+  notes: 'AJCC 8 shares ONE stage-group table across all three laryngeal subsites; only the T DEFINITIONS differ. The subsite is therefore collected as a required E field so the correct T definition can be shown, and T1a/T1b are rejected outside the glottis. The stage table uses bare T1, so glottis T1a and T1b inherit Stage I. SEPARATE cN AND pN TABLES: source Tables 2 and 3 give distinct clinical and pathological N criteria, and the pathological ones are broader because they can use microscopic ENE - pN2a admits a <=3 cm ENE-positive node where cN2a cannot. Both bases publish the N2a/N2b/N2c and N3a/N3b subdivisions; the stage table names only the bare parents N2 and N3, and a bare parent here also reaches its subdivisions, so the subdivisions resolve through the parent row. ENE SUFFIX: a designation of U or L may be used for any N category to indicate metastasis above the lower border of the cricoid (U) or below it (L), and clinical and pathological ENE should be recorded as ENE(-) or ENE(+). The U/L designation is a reporting suffix and does not change the stage group, so it is not offered as a stage determinant. TRANSCRIPTION FLAGS IN THE SOURCE, all carried through literally rather than corrected: (1) in Table 9 the Stage IVA row for "T4a, N0, N1, M0" prints the N0 description by repeating the N1 wording ("Metastasis in a single ipsilateral node, <=3 cm in greatest dimension and ENE(-)"); per Tables 2 and 3, N0 is "No regional lymph node metastasis", so the printed N0 text is not the N0 definition and is not used here. (2) pN3a is printed "Metastasis in a lymph mode >6 cm..." - "mode" is a source typo for "node". (3) cN2c is printed "bilateral of contralateral" - a source typo for "or". (4) The retrieved pN2a text stops mid-sentence with the ENE sign missing; it is transcribed exactly as retrieved and deliberately NOT completed by inference, so the pN2a definition shown in the app is knowingly incomplete.'
 };
 
 SITES.thyroidDiff = {
@@ -3246,55 +3595,761 @@ SITES.breast = {
   name: 'Breast',
   group: 'Breast',
   ed: { v: 8, label: 'AJCC 8th edition' },
-  scope: 'Carcinoma of the breast. THIS BUILD SHIPS PATHOLOGIC TNM ONLY: the clinical T, N and M tables and the biologic marker prognostic tables (HER2, oestrogen receptor, progesterone receptor) are out of scope by user decision, not because AJCC 8 lacks them. Only the anatomic stage-group table is provided.',
+  scope: 'Carcinoma of the breast. Three AJCC 8 stage-group tables are shipped. The ANATOMIC table (Table 8) grades T, N and M alone and is published on all four bases. The two PROGNOSTIC tables add histologic grade and HER2, ER and PR status: Table 9 for the clinical basis and Table 10 for the pathological basis. AJCC 8 publishes NO post-neoadjuvant or recurrent prognostic table, so those two bases are offered on the anatomic table alone and are labelled as a convention; the prognostic family refuses them rather than quietly answering with the anatomic table.',
+  tableKinds: [
+    { k: 'anatomic', label: 'Anatomic (T, N, M only)', note: 'Table 8. Grades T, N and M alone. It ignores histologic grade and every biologic marker, so it is the right table when the receptors are unknown, or when the disease is being staged after neoadjuvant therapy.' },
+    { k: 'prognostic', label: 'Prognostic (T, N, M + grade, HER2, ER, PR)', note: 'Table 9 clinically, Table 10 pathologically. Published for the clinical and pathological bases ONLY. The two tables disagree for identical categories, so the table has to be chosen: pT2 N1 M0 G3 is IIB in the anatomic table and can be IIA, IIB or IIIA here, depending on receptor status alone.' }
+  ],
   T: {
     cats: ['TX', 'T0', 'Tis', 'T1', 'T1mi', 'T1a', 'T1b', 'T1c', 'T2', 'T3', 'T4', 'T4a', 'T4b', 'T4c', 'T4d'],
-    def: { 'TX': 'Primary tumor cannot be assessed.', 'T0': 'No evidence of primary tumor.', 'Tis': 'DCIS.', 'T1': 'Tumor <=20 mm in greatest dimension.', 'T1mi': 'Tumor <=1 mm in greatest dimension.', 'T1a': 'Tumor >1 mm but <=5 mm in greatest dimension (round any measurement >1.0-1.9 mm to 2 mm).', 'T1b': 'Tumor >5 mm but <=10 mm in greatest dimension.', 'T1c': 'Tumor >10 mm but <=20 mm in greatest dimension.', 'T2': 'Tumor >20 mm but <=50 mm in greatest dimension.', 'T3': 'Tumor >50 mm in greatest dimension.', 'T4': 'Tumor of any size with direct extension to the chest wall and/or to the skin (ulceration or macroscopic nodules); invasion of the dermis alone does not qualify as T4.', 'T4a': 'Extension to the chest wall; invasion or adherence to pectoralis muscle in the absence of invasion of chest wall structures does not qualify as T4.', 'T4b': 'Ulceration and/or ipsilateral macroscopic satellite nodules and/or edema (including peau d\'orange) of the skin that does not meet the criteria for inflammatory carcinoma.', 'T4c': 'Both T4a and T4b are present.', 'T4d': 'Inflammatory carcinoma (see Rules for Classification).' }
+    def: { 'TX': 'Primary tumor cannot be assessed.', 'T0': 'No evidence of primary tumor.', 'Tis': 'DCIS.', 'T1': 'Tumor <=20 mm in greatest dimension.', 'T1mi': 'Tumor <=1 mm in greatest dimension.', 'T1a': 'Tumor >1 mm but <=5 mm in greatest dimension (round any measurement >1.0-1.9 mm to 2 mm).', 'T1b': 'Tumor >5 mm but <=10 mm in greatest dimension.', 'T1c': 'Tumor >10 mm but <=20 mm in greatest dimension.', 'T2': 'Tumor >20 mm but <=50 mm in greatest dimension.', 'T3': 'Tumor >50 mm in greatest dimension.', 'T4': 'Tumor of any size with direct extension to the chest wall and/or to the skin (ulceration or macroscopic nodules); invasion of the dermis alone does not qualify as T4.', 'T4a': 'Extension to the chest wall; invasion or adherence to pectoralis muscle in the absence of invasion of chest wall structures does not qualify as T4.', 'T4b': 'Ulceration and/or ipsilateral macroscopic satellite nodules and/or edema (including peau d\'orange) of the skin that does not meet the criteria for inflammatory carcinoma.', 'T4c': 'Both T4a and T4b are present.', 'T4d': 'Inflammatory carcinoma (see Rules for Classification).' },
+    notes: 'AJCC 8 states that T1 includes T1mi, and the stage tables are written against the bare T1, T2, T3 and T4 rather than against T1a to T1c or T4a to T4d, so a parent reaches its own subdivisions. Paget disease of the nipple is not offered as a separate T value: AJCC 8 assigns Paget disease that is not associated with an invasive carcinoma its own Tis category, but the transcribed table does not enumerate it, so the Tis row is not stretched to cover it. Lobular carcinoma in situ is a benign entity and was removed from TNM staging in the 8th edition.'
   },
   N: {
-    cats: ['NX', 'N0', 'N0(i+)', 'N0(mol+)', 'N1', 'N1mi', 'N1a', 'N1b', 'N1c', 'N2', 'N2a', 'N2b', 'N3', 'N3a', 'N3b', 'N3c'],
-    noParent: ['N1mi'],
-    def: { 'NX': 'Regional lymph nodes cannot be assessed (e.g., not removed for pathological study or previously removed).', 'N0': 'No regional lymph node metastasis identified or ITCs only.', 'N0(i+)': 'ITCs only (malignant cell clusters <=0.2 mm) in regional lymph node(s).', 'N0(mol+)': 'Positive molecular findings by RT-PCR; no ITCs detected.', 'N1': 'Micrometastases; or metastases in 1-3 axillary lymph nodes; and/or clinically negative internal mammary nodes with micrometastases or macrometastases by sentinel lymph node biopsy.', 'N1mi': 'Micrometastases (~200 cells, >0.2 mm, but <=2.0 mm).', 'N1a': 'Metastases in 1-3 axillary lymph nodes, at least one metastasis >2.0 mm.', 'N1b': 'Metastases in ipsilateral internal mammary sentinel nodes, excluding ITCs.', 'N1c': 'pN1a and pN1b combined.', 'N2': 'Metastases in 4-9 axillary lymph nodes; or positive ipsilateral internal mammary lymph nodes by imaging in the absence of axillary lymph node metastases.', 'N2a': 'Metastases in 4-9 axillary lymph nodes (at least 1 tumor deposit >2.0 mm).', 'N2b': 'Metastases in clinically detected internal mammary lymph nodes with or without microscopic confirmation; with pathologically negative axillary nodes.', 'N3': 'Metastases in >=10 axillary lymph nodes; or in infraclavicular (Level III axillary) lymph nodes; or positive ipsilateral internal mammary lymph nodes by imaging in the presence of one or more positive Level I, II axillary lymph nodes; or in >3 axillary lymph nodes and micrometastases or macrometastases by sentinel lymph node biopsy in clinically negative ipsilateral internal mammary lymph nodes; or in ipsilateral supraclavicular lymph nodes.', 'N3a': 'Metastases in >=10 axillary lymph nodes (at least 1 tumor deposit >2.0 mm); or metastases to the infraclavicular (Level III axillary lymph) nodes.', 'N3b': 'pN1a or pN2a in the presence of cN2b (positive internal mammary nodes by imaging); or pN2a in the presence of pN1b.', 'N3c': 'Metastases in ipsilateral supraclavicular lymph nodes.' }
+    catsByMode: {
+      c: ['NX', 'N0', 'N1', 'N1mi', 'N2', 'N2a', 'N2b', 'N3', 'N3a', 'N3b', 'N3c'],
+      p: ['NX', 'N0', 'N0(i+)', 'N0(mol+)', 'N1', 'N1mi', 'N1a', 'N1b', 'N1c', 'N2', 'N2a', 'N2b', 'N3', 'N3a', 'N3b', 'N3c']
+    },
+    defByMode: {
+      c: {
+        'NX': 'Regional lymph nodes cannot be assessed (e.g. previously removed). NOTE: the cNX category is used sparingly, in cases where regional nodes have previously been surgically removed or where there is no documentation of physical examination of the axilla.',
+        'N0': 'No regional lymph node metastases (by imaging or clinical examination).',
+        'N1': 'Metastases to movable ipsilateral Level I, II axillary lymph node(s).',
+        'N1mi': 'Micrometastases (approximately 200 cells, >0.2 mm, but <=2.0 mm). NOTE: cN1mi is rarely used but may be appropriate where sentinel node biopsy is performed before tumour resection, most likely in cases treated with neoadjuvant therapy.',
+        'N2': 'Metastases in ipsilateral Level I, II axillary lymph nodes that are clinically fixed or matted; or in ipsilateral internal mammary nodes in the absence of axillary lymph node metastases.',
+        'N2a': 'Metastases in ipsilateral Level I, II axillary lymph nodes fixed to one another (matted) or to other structures.',
+        'N2b': 'Metastases only in ipsilateral internal mammary nodes in the absence of axillary lymph node metastases.',
+        'N3': 'Metastases in ipsilateral infraclavicular (Level III axillary) lymph node(s) with or without Level I, II axillary lymph node involvement; or in ipsilateral internal mammary lymph node(s) with Level I, II axillary lymph node metastases; or metastases in ipsilateral supraclavicular lymph node(s) with or without axillary or internal mammary lymph node involvement.',
+        'N3a': 'Metastases in ipsilateral infraclavicular (Level III axillary) lymph node(s).',
+        'N3b': 'Metastases in ipsilateral internal mammary lymph node(s) and axillary lymph node(s).',
+        'N3c': 'Metastases in ipsilateral supraclavicular lymph node(s).'
+      },
+      p: {
+        'NX': 'Regional lymph nodes cannot be assessed (e.g. not removed for pathological study or previously removed).',
+        'N0': 'No regional lymph node metastasis identified or ITCs only.',
+        'N0(i+)': 'ITCs only (malignant cell clusters <=0.2 mm) in regional lymph node(s).',
+        'N0(mol+)': 'Positive molecular findings by RT-PCR; no ITCs detected.',
+        'N1': 'Micrometastases; or metastases in 1-3 axillary lymph nodes; and/or clinically negative internal mammary nodes with micrometastases or macrometastases by sentinel lymph node biopsy.',
+        'N1mi': 'Micrometastases (~200 cells, >0.2 mm, but <=2.0 mm).',
+        'N1a': 'Metastases in 1-3 axillary lymph nodes, at least one metastasis >2.0 mm.',
+        'N1b': 'Metastases in ipsilateral internal mammary sentinel nodes, excluding ITCs.',
+        'N1c': 'pN1a and pN1b combined.',
+        'N2': 'Metastases in 4-9 axillary lymph nodes; or positive ipsilateral internal mammary lymph nodes by imaging in the absence of axillary lymph node metastases.',
+        'N2a': 'Metastases in 4-9 axillary lymph nodes (at least 1 tumor deposit >2.0 mm).',
+        'N2b': 'Metastases in clinically detected internal mammary lymph nodes with or without microscopic confirmation; with pathologically negative axillary nodes.',
+        'N3': 'Metastases in >=10 axillary lymph nodes; or in infraclavicular (Level III axillary) lymph nodes; or positive ipsilateral internal mammary lymph nodes by imaging in the presence of one or more positive Level I, II axillary lymph nodes; or in >3 axillary lymph nodes and micrometastases or macrometastases by sentinel lymph node biopsy in clinically negative ipsilateral internal mammary lymph nodes; or in ipsilateral supraclavicular lymph nodes.',
+        'N3a': 'Metastases in >=10 axillary lymph nodes (at least 1 tumor deposit >2.0 mm); or metastases to the infraclavicular (Level III axillary lymph) nodes.',
+        'N3b': 'pN1a or pN2a in the presence of cN2b (positive internal mammary nodes by imaging); or pN2a in the presence of pN1b.',
+        'N3c': 'Metastases in ipsilateral supraclavicular lymph nodes.'
+      }
+    },
+    noParent: ['N1mi', 'N0(mol+)'],
+    notes: 'The clinical and pathological N categories are DIFFERENT systems that happen to share labels, so the list and the wording are given per basis. cN1a means metastases to movable Level I, II axillary nodes, while pN1a means metastases in 1-3 axillary nodes with at least one over 2.0 mm; pN0(mol+) and pN1c have no clinical counterpart at all and are absent from the clinical list. BARE N1 DOES NOT REACH N1mi: AJCC 8 states that N1mi is not to be equated with N1a, N1b or N1c, and both tables give micrometastases their own place. Where a row must take N1mi as well, it names N1mi explicitly before N1. N0(i+) IS reached through N0, because pN0 is defined as no metastasis identified OR isolated tumour cells only. pN0(mol+) is NOT reached through N0 and is refused for confirmation, because the transcribed table does not place a molecular-only result inside pN0.'
   },
   M: {
     cats: ['M0', 'M0(i+)', 'M1'],
-    def: { 'M0': 'No clinical or radiographic evidence of distant metastases. NOTE_b: imaging studies are not required to assign the cM0 category.', 'M0(i+)': 'No clinical or radiographic evidence of distant metastases in the presence of tumor cells or deposits <=0.2 mm detected microscopically or by molecular techniques in circulating blood, bone marrow, or other nonregional nodal tissue in a patient without symptoms or signs of metastases.', 'M1': 'CLINICAL: Distant metastases detected by clinical and radiographic means.  PATHOLOGIC: Any histologically proven metastases in distant organs; or if in nonregional nodes, metastases >0.2 mm.' }
+    def: {
+      'M0': 'No clinical or radiographic evidence of distant metastases. NOTE: imaging studies are not required to assign the cM0 category.',
+      'M0(i+)': 'No clinical or radiographic evidence of distant metastases in the presence of tumour cells or deposits <=0.2 mm detected microscopically or by molecular techniques in circulating blood, bone marrow or other non-regional nodal tissue in a patient without symptoms or signs of metastases.',
+      'M1': 'CLINICAL: distant metastases detected by clinical and radiographic means. PATHOLOGIC: any histologically proven metastases in distant organs; or if in non-regional nodes, metastases >0.2 mm.'
+    },
+    notes: 'M0 IS ALWAYS CLINICAL. AJCC 8 states that the designation pM0 is not valid and that any M0 is clinical, so an M0 entered here is reported with the c prefix, and M0(i+) keeps its clinical affix as well. M0 includes M0(i+), so both reach the M0 rows. M1 is offered as a single category because pM1 covers metastases in distant organs or in non-regional nodes of more than 0.2 mm, and the subdivision detail sits in the definition.'
   },
-  noCTbl: true,
-  noStage: function (inp) {
-    if (inp.mode === 'c') return 'This build ships breast pathologic TNM only. The clinical T, N and M tables and the biologic marker prognostic tables were scoped out, so no clinical stage group is offered.';
-      if (inp.N === 'N0(mol+)') return 'The AJCC 8 anatomic stage table is written against pN0, whose definition is "no regional lymph node metastasis identified or isolated tumour cells only". It does not mention pN0(mol+), so this app will not assume that a molecular-only result sits inside pN0 for staging. Confirm the intended pN0 category.';
-    if (inp.M === 'M0(i+)') return 'The AJCC 8 anatomic stage table is written against M0 and contains no row for cM0(i+). That category reports isolated tumour cells or deposits of 0.2 mm or less in circulating blood, bone marrow or non-regional nodal tissue, with no clinical or radiographic evidence of distant metastasis. It is not folded into M0 here, because doing so would extend a published row; confirm the category.';
-    if (inp.T === 'Tis' && inp.M === 'M0' && inp.N !== 'N0' && inp.N !== 'N0(i+)' && !/^N3/.test(inp.N)) return 'The AJCC 8 anatomic table assigns Stage 0 to Tis N0 M0 and reaches Tis nowhere else except the "any T, N3" and "any T, any N, M1" rows. It contains no row for Tis with a regional nodal metastasis below N3, so no stage group is assigned. (Tis with M1 is Stage IV, and Tis with any N3 is IIIC.)';
-    if (inp.N === 'N1mi' && inp.M === 'M0' && inp.T !== 'T0' && !/^T1/.test(inp.T)) return 'The AJCC 8 anatomic table places pN1mi only in Stage IB, written against T0 and T1. It contains no row for pN1mi with T2 or larger, so no stage group is assigned. pN1mi describes micrometastases of more than 0.2 mm and 2.0 mm or less, which AJCC 8 pairs with the T1 tumour sizes; a larger primary tumour with a micrometastasis is not represented in the transcribed table.';
-    if (inp.T === 'T0' && (inp.N === 'N0' || inp.N === 'N0(i+)') && inp.M === 'M0') return 'The AJCC 8 anatomic table contains no row for T0 N0 M0. Stage 0 is Tis N0 M0, and every other group is written against T1 or larger, so a case with neither a primary tumour nor a regional nodal metastasis is given no stage group. (T0 with pN1mi is IB, with pN1 is IIA, with pN2 is IIIA, with any N3 is IIIC, and with M1 is IV.)';
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3'],
+    kinds: ['prognostic'],
+    def: {
+      'GX': 'Grade cannot be assessed.',
+      'G1': 'Low combined histological grade (favorable), SBR score of 3-5 points.',
+      'G2': 'Intermediate combined histological grade (moderately favorable); SBR score of 6-7 points.',
+      'G3': 'High combined histological grade (unfavorable); SBR score of 8-9 points.'
+    },
+    notes: 'Combined histological grade, SBR (Scarff-Bloom-Richardson) Nottingham Modification. Grade enters the PROGNOSTIC tables only; the anatomic table ignores it, so this input is not even shown there. The prognostic tables are written against G1, G2 and G3, so GX has no group except alongside Tis N0 M0 and alongside M1, both of which the table leaves grade-free.'
+  },
+  E: [
+    { k: 'her2', label: 'HER2 (H2)', req: true, kinds: ['prognostic'], opts: ['Positive', 'Negative'],
+      defs: { 'Positive': 'HER2 positive.', 'Negative': 'HER2 negative.' },
+      notes: 'Positive or negative only, as the tables themselves use only those two states. An equivocal HER2 by in situ hybridization (FISH or CISH) under the 2013 ASCO/CAP guidelines is assigned to the HER2-negative category in the PATHOLOGICAL prognostic table. No such rule is stated for the clinical table, and no AJCC 8 rule for a not-known, not-performed or indeterminate result could be retrieved from the cited source, so none is applied here.' },
+    { k: 'er', label: 'Oestrogen receptor (ER)', req: true, kinds: ['prognostic'], opts: ['Positive', 'Negative'],
+      defs: { 'Positive': 'Oestrogen receptor positive.', 'Negative': 'Oestrogen receptor negative.' } },
+    { k: 'pr', label: 'Progesterone receptor (PR)', req: true, kinds: ['prognostic'], opts: ['Positive', 'Negative'],
+      defs: { 'Positive': 'Progesterone receptor positive.', 'Negative': 'Progesterone receptor negative.' } }
+  ],
+  noStage: function (inp, mode) {
+    var prognostic = inp.kind === 'prognostic';
+    if (inp.T === 'TX') return 'TX means the primary tumour cannot be assessed, and every AJCC 8 breast stage-group table is written against an assessed T category, so no stage group is assigned.';
+    if (inp.N === 'NX') return 'NX means the regional nodes cannot be assessed, and every AJCC 8 breast stage-group table is written against an assessed N category, so no stage group is assigned.';
+    if (inp.N === 'N0(mol+)') return 'The AJCC 8 stage tables are written against pN0, whose definition is "no regional lymph node metastasis identified or isolated tumour cells only". pN0(mol+) is a positive molecular finding by RT-PCR with no ITCs detected, and the transcribed tables do not place it inside pN0, so this app will not assume that a molecular-only result sits inside pN0 for staging. Confirm the intended pN0 category.';
+    if (prognostic && inp.G === 'GX' && !(inp.T === 'Tis' && /^N0/.test(inp.N) && /^M0/.test(inp.M)) && inp.M !== 'M1') return 'AJCC 8 Tables 9 and 10 are written against G1, G2 and G3. The Tis N0 M0 row and the M1 row leave grade unconstrained, so GX reaches a group there and nowhere else in the prognostic tables. Confirm the grade, or use the anatomic table, which ignores grade entirely.';
+    if (mode === 'yp' && inp.T === 'T0' && /^N0/.test(inp.N) && /^M0/.test(inp.M)) return 'AJCC 8 assigns NO anatomic stage group after neoadjuvant therapy when there is a complete pathological response, for example ypT0, ypN0, cM0. The post-neoadjuvant response is reported instead, and assignment of any post-neoadjuvant prognostic stage group is the responsibility of the managing clinician.';
+    if (inp.T === 'Tis' && /^M0/.test(inp.M) && inp.N !== 'N0' && inp.N !== 'N0(i+)' && !/^N3/.test(inp.N)) return 'The AJCC 8 tables assign Stage 0 to Tis N0 M0 and reach Tis nowhere else except the "any T, N3" and "any T, any N, M1" rows. They contain no row for Tis with a regional nodal metastasis below N3, so no stage group is assigned. (Tis with any N3 is IIIC, and Tis with M1 is IV.)';
+    if (inp.T === 'T0' && (inp.N === 'N0' || inp.N === 'N0(i+)') && /^M0/.test(inp.M)) return 'The AJCC 8 tables contain no row for T0 N0 M0. Stage 0 is Tis N0 M0, and every other group is written against T1 or larger, so a case with neither a primary tumour nor a regional nodal metastasis is given no stage group. (T0 with N1mi is IB, with N1 is IIA, with N2 is IIIA, with any N3 is IIIC, and with M1 is IV.)';
     return null;
   },
   sets: [
-    { id: 'breast_anatomic', label: 'AJCC 8 Anatomic Stage Groups, pathologically staged (pTNM)', mode: ['p','yp','r'], rows: [
-      { g: '0', T: 'Tis', N: 'N0,N0(i+)', M: 'M0' },
-      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0' },
-      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0' },
-      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0' },
-      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0' },
-      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0' },
-      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0' },
-      { g: 'IIB', T: 'T2', N: 'N1', M: 'M0' },
-      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0' },
-      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0' },
-      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0' },
-      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0' },
-      { g: 'IIIA', T: 'T3', N: 'N1', M: 'M0' },
-      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0' },
-      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0' },
-      { g: 'IIIB', T: 'T4', N: 'N1', M: 'M0' },
-      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0' },
-      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0' },
+    { id: 'breast_anatomic', kind: 'anatomic', mode: ['c','p','yp','r'],
+      label: 'Table 8. AJCC 8 Anatomic Stage Groups - T, N and M only', rows: [
+      { g: '0', T: 'Tis', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)' },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)' },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)' },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)' },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)' },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)' },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)' },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)' },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)' },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)' },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)' },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)' },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)' },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' },
+    ]},
+    { id: 'breast_progn_c', kind: 'prognostic', mode: 'c',
+      label: 'Table 9. AJCC 8 Clinical Prognostic Stage Groups - T, N, M, grade, HER2, ER and PR', rows: [
+      { g: '0', T: 'Tis', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' },
+    ]},
+    { id: 'breast_progn_p', kind: 'prognostic', mode: 'p',
+      label: 'Table 10. AJCC 8 Pathological Prognostic Stage Groups - T, N, M, grade, HER2, ER and PR', rows: [
+      { g: '0', T: 'Tis', N: 'N0,N0(i+)', M: 'M0,M0(i+)' },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1mi', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative' } },
+      { g: 'IA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T0', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T1', N: 'N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T0', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T1', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T2', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T3', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIB', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIA', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T3', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G1', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIA', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIA', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Positive', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G2', E: { her2: 'Negative', er: 'Negative', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N0,N0(i+)', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N1mi,N1', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'T4', N: 'N2', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIB', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Positive', er: 'Positive', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Negative', pr: 'Negative,Positive' } },
+      { g: 'IIIC', T: 'Any T', N: 'N3', M: 'M0,M0(i+)', G: 'G3', E: { her2: 'Negative', er: 'Positive', pr: 'Negative' } },
       { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' },
     ]},
   ],
   sources: ['https://www.cancer.gov/types/breast/hp/breast-treatment-pdq', 'CAP Breast Protocol 4.11.0.0 - Breast_4.11.0.0.REL_CAPCP.pdf'],
-  notes: 'THIS IS THE ANATOMIC TABLE, NOT THE PROGNOSTIC ONE. The anatomic table ignores HER2, oestrogen receptor and progesterone receptor entirely; the prognostic stage groups, which fold grade and receptor status into the stage, were scoped out along with the clinical tables. BARE T CATEGORIES REACH GROUPS ON PURPOSE: AJCC 8 states T1 includes T1mi, and the table is written against T1, T2, T3 and T4 rather than against T1a to T1c or T4a to T4d. So a parent such as T1 covers T1, T1mi, T1a, T1b and T1c through the published parent, and the subdivisions remain separately selectable. STAGE IB NEEDS NO TUMOUR: T0 with pN1mi is Stage IB, which is the pN1mi-only-by-itself case. pN1mi is called out in its own definition and appears in no other row, so it reaches only IB, and it is EXCLUDED from the pN1 parent: AJCC 8 states pN1mi is not to be equated with pN1a, pN1b or pN1c, and the table gives it its own group. The pN1a, pN1b and pN1c subdivisions ARE reached through the bare pN1 row, because the transcribed table is written against pN1 and the parent covers its own subdivisions. pN0(i+) is included in pN0 by definition, which reads "no regional lymph node metastasis identified or isolated tumour cells only", so it is reached through the pN0 row. pN0(mol+) is NOT, and is refused for confirmation. M0 IS ALWAYS CLINICAL: AJCC 8 states the designation pM0 is not valid and that any M0 is clinical, so an M0 entered here is reported as cM0, and M0(i+) likewise keeps its clinical affix. M1 is offered as a single category, since pM1 covers metastases in distant organs or in non-regional nodes of more than 0.2 mm, and the subdivision detail is in the definition. There is no AJCC 8 post-neoadjuvant or recurrent breast table in this transcription, so yp and r reuse the anatomic table BY CONVENTION and are labelled as such. Paget disease of the nipple is not offered as a separate T value: AJCC 8 assigns Paget disease that is not associated with an invasive carcinoma its own Tis category, but the transcribed stage table is written against Tis alone, so a separate value here could not be staged without inventing a row.'
+  notes: 'THREE TABLES, AND THEY DISAGREE. The anatomic table (Table 8) grades T, N and M alone. The prognostic tables (Table 9 clinical, Table 10 pathological) grade the same T/N/M against histologic grade AND HER2, ER and PR, and they do not agree with each other or with Table 8. pT2 N1 M0 G3 is IIB in the anatomic table; in the clinical prognostic table it is IIA, IIB or IIIA depending on HER2 and receptor status alone. The app therefore asks which table is meant instead of guessing from the data entered. FOOTNOTES ARE ENCODED, NOT INVENTED. T1 includes T1mi, so a bare T1 row reaches T1mi and the T1a to T1c subdivisions. For T0 and T1 the bare N1 does NOT reach N1mi: AJCC 8 states that N1 does not include N1mi there, and T1 N1mi and T0 N1mi are staged with the T1 N0 and T0 N0 rows of the same prognostic factor status, which is where the Stage IB rows come from. For T2, T3 and T4 the bare N1 DOES reach N1mi, because AJCC 8 states those tumours with nodal micrometastases are staged using the N1 category. M0 includes M0(i+), so both reach the M0 rows. N0(i+) is inside pN0 by its own definition; pN0(mol+) is not, and is refused. M1 BEFORE neoadjuvant therapy is Stage IV and stays Stage IV regardless of response. A stage designation may be changed if postsurgical imaging reveals distant metastases, provided the studies are done within 4 months of diagnosis with no disease progression and provided the patient has not had neoadjuvant therapy. THE PROGNOSTIC TABLES ARE NOT PUBLISHED FOR yp OR r. AJCC 8 gives no post-neoadjuvant or recurrent prognostic stage-group table for breast, and no such table was retrievable from the cited sources, so those bases are refused for the prognostic family and served by the anatomic table under an explicit convention label. The app also states plainly that no AJCC 8 rule could be retrieved for a biomarker result that is not known, not performed or indeterminate, so no such category is offered and none is guessed.'
 };
 </script>
 
@@ -3310,11 +4365,16 @@ function el(tag, cls, txt){
   return n;
 }
 function clear(n){ while (n.firstChild) n.removeChild(n.firstChild); }
+/* Basis-aware: a site may publish different categories, with different meanings,
+   for cTNM and pTNM on the same axis. Both helpers follow the selected basis and
+   fall back to the shared lists for the 37 sites that declare neither. */
 function cats(site, ax){
+  if (typeof axisCatList === 'function') return axisCatList(site, ax, S.mode);
   var a = site[ax];
   return (a && a.cats) ? a.cats : [];
 }
 function defOf(site, ax, cat){
+  if (typeof axisDef === 'function') return axisDef(site, ax, cat, S.mode);
   var a = site[ax];
   return (a && a.def && a.def[cat]) ? a.def[cat] : '';
 }
@@ -3337,7 +4397,7 @@ function defaultMode(s){
 }
 
 /* ------------------------------------------------------------------ state */
-var S = { siteId: '', mode: 'c', T: '', N: '', M: '', G: '', E: {}, ctx: {} };
+var S = { siteId: '', mode: 'c', kind: '', T: '', N: '', M: '', G: '', E: {}, ctx: {} };
 var site = null;
 
 function siteList(){
@@ -3375,8 +4435,8 @@ function axisSelect(ax){
     var o = el('option', null, c + (defOf(site, ax, c) ? '  â€”  ' + defOf(site, ax, c) : ''));
     o.value = c; sel.appendChild(o);
   });
+  if (S[ax] && list.indexOf(S[ax]) < 0) S[ax] = '';
   sel.value = S[ax];
-  if (S[ax] && !allowed(site, ax, S[ax], S.mode)) S[ax] = '';
   sel.addEventListener('change', function(){ S[ax] = sel.value; go(); });
   wrap.appendChild(lab); wrap.appendChild(sel);
   return wrap;
@@ -3387,6 +4447,7 @@ function extraInputs(){
   clear(box);
   if (!site.E) return;
   site.E.forEach(function (spec){
+    if (spec.kinds && spec.kinds.indexOf(S.kind) < 0) return;   /* not graded by this family */
     var wrap = el('div');
     var lab = el('label', null, spec.label + (spec.req ? ' *' : ''));
     var id = 'ex_' + spec.k;
@@ -3411,8 +4472,35 @@ function buildAxes(){
     if (!cats(site, ax).length) return;
     box.appendChild(axisSelect(ax));
   });
-  if (cats(site, 'G').length) box.appendChild(axisSelect('G'));
+  if (axisKindOk(site, 'G', S.kind) && cats(site, 'G').length) box.appendChild(axisSelect('G'));
   extraInputs();
+}
+
+function buildKinds(){
+  var box = document.getElementById('kinds');
+  clear(box);
+  var ks = siteKinds(site);
+  if (!ks) { S.kind = ''; return; }
+  var avail = kindsFor(site, S.mode);
+  if (!S.kind || ks.every(function (d){ return d.k !== S.kind; })) S.kind = ks[0].k;
+  var lab = el('label', null, 'Stage table');
+  lab.setAttribute('for', 'kindSel');
+  var sel = el('select'); sel.id = 'kindSel';
+  ks.forEach(function (d){
+    var o = el('option', null, d.label || d.k);
+    o.value = d.k;
+    if (avail.indexOf(d.k) < 0) {
+      o.disabled = true;
+      o.textContent = d.label + '  (not published for this basis)';
+    }
+    sel.appendChild(o);
+  });
+  sel.value = S.kind;
+  sel.addEventListener('change', function(){ S.kind = sel.value; go(); });
+  box.appendChild(lab);
+  box.appendChild(sel);
+  var note = kindNote(site, S.kind);
+  if (note) box.appendChild(el('div', 'hint', note));
 }
 
 function buildModes(){
@@ -3420,17 +4508,18 @@ function buildModes(){
   var hint = document.getElementById('modeHint');
   Array.prototype.forEach.call(host.querySelectorAll('button'), function (b){
     var m = b.getAttribute('data-mode');
-    var p = tableProvenance(site, m);
+    var p = tableProvenance(site, m, S.kind);
     b.setAttribute('aria-pressed', String(m === S.mode));
     b.disabled = (p === 'none');
     b.title = p === 'published' ? 'Published AJCC/UICC table for this basis'
             : p === 'primary'  ? 'No table published for this basis: the primary table is reused by convention'
             : 'Not built in this release';
   });
-  var p = tableProvenance(site, S.mode);
-  hint.textContent = p === 'published' ? 'Published table for this basis.'
-                   : p === 'primary'  ? 'No table is published for this basis. The primary table is reused BY CONVENTION and the result is labelled as such.'
-                   : 'This basis is not built in this release. The app will refuse it and explain.';
+  var p = tableProvenance(site, S.mode, S.kind);
+  var kn = S.kind ? ' for the ' + kindLabel(site, S.kind).toLowerCase() + ' table' : '';
+  hint.textContent = p === 'published' ? 'Published table' + kn + ' on this basis.'
+                   : p === 'primary'  ? 'No table is published for this basis' + kn + '. The primary table is reused BY CONVENTION and the result is labelled as such.'
+                   : 'This basis is not published' + kn + '. The app will refuse it and explain.';
 }
 
 function check(id, label, sub, onChange){
@@ -3480,6 +4569,7 @@ function buildContexts(){
 /* ----------------------------------------------------------------- output */
 function inputObj(){
   var o = { site: site.id, mode: S.mode, context: S.ctx };
+  if (S.kind) o.kind = S.kind;
   ['T', 'N', 'M', 'G'].forEach(function (ax){ if (S[ax]) o[ax] = S[ax]; });
   if (site.E) site.E.forEach(function (s){ if (S.E[s.k]) { o.E = o.E || {}; o.E[s.k] = S.E[s.k]; } });
   return o;
@@ -3624,6 +4714,7 @@ function renderRefsOnly(fbox){
 var hashMode = false;   /* did the incoming link actually name a basis? */
 function writeHash(){
   var p = ['site=' + S.siteId, 'mode=' + S.mode];
+  if (S.kind) p.push('kind=' + S.kind);
   ['T', 'N', 'M', 'G'].forEach(function (ax){ if (S[ax]) p.push(ax + '=' + encodeURIComponent(S[ax])); });
   if (site && site.E) site.E.forEach(function (s){ if (S.E[s.k]) p.push('E.' + s.k + '=' + encodeURIComponent(S.E[s.k])); });
   Object.keys(S.ctx).forEach(function (k){
@@ -3641,6 +4732,7 @@ function readHash(){
     if (i >= 0){ k = kv.slice(0, i); v = decodeURIComponent(kv.slice(i + 1)); }
     if (k === 'site') S.siteId = v;
     else if (k === 'mode') { S.mode = v; hashMode = true; }
+    else if (k === 'kind') S.kind = v;
     else if (k === 'T' || k === 'N' || k === 'M' || k === 'G') S[k] = v;
     else if (k.indexOf('E.') === 0){ S.E = S.E || {}; S.E[k.slice(2)] = v; }
     else if (k.indexOf('ctx.') === 0){ S.ctx = S.ctx || {}; S.ctx[k.slice(4)] = (v === '1') ? true : v; }
@@ -3650,11 +4742,12 @@ function readHash(){
 
 /* ------------------------------------------------------------------- boot */
 function go(){
-  buildModes(); render(); writeHash();
+  buildKinds(); buildModes(); render(); writeHash();
 }
 function pickSite(id){
   S.siteId = id; site = SITES[id];
   S.mode = defaultMode(site);
+  S.kind = '';
   S.T = S.N = S.M = S.G = ''; S.E = {};
   buildAxes(); buildContexts(); go();
 }
@@ -3664,7 +4757,15 @@ Array.prototype.forEach.call(document.querySelectorAll('#modes button'), functio
   b.addEventListener('click', function(){
     if (b.disabled) return;
     S.mode = b.getAttribute('data-mode');
-    if (site) { buildAxes(); }
+    if (site) {
+      /* Changing basis can leave a category selected that exists on the old
+         basis only - breast pN1c has no clinical counterpart. Drop it rather
+         than stage a combination the chosen table never described. */
+      ['T', 'N', 'M', 'G'].forEach(function (ax){
+        if (S[ax] && (!allowed(site, ax, S[ax], S.mode) || cats(site, ax).indexOf(S[ax]) < 0)) S[ax] = '';
+      });
+      buildAxes();
+    }
     go();
   });
 });
@@ -3679,9 +4780,9 @@ site = SITES[S.siteId];
    another one. So a default is chosen only when the link did not ask for a
    basis, or when the user picks a site from the list. */
 if (!hashMode) S.mode = defaultMode(site);
-/* keep only categories the chosen basis allows */
+/* keep only categories the chosen basis allows, and only those that exist on it */
 ['T', 'N', 'M', 'G'].forEach(function (ax){
-  if (S[ax] && !allowed(site, ax, S[ax], S.mode)) S[ax] = '';
+  if (S[ax] && (!allowed(site, ax, S[ax], S.mode) || cats(site, ax).indexOf(S[ax]) < 0)) S[ax] = '';
 });
 buildAxes(); buildContexts(); go();
 })();
