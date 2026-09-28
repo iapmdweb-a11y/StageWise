@@ -1147,7 +1147,7 @@ SITES.lung = {
   ed: { v: 9, label: 'AJCC Version 9', eff: '2025-01-01' },
   scope: 'Carcinoma of the lung. Histologic type and grade must be reported (WHO 2021); "non-small cell carcinoma" is not acceptable in resection specimens.',
   T: {
-    cats: ['TX', 'T0', 'Tis', 'T1mi', 'T1a', 'T1b', 'T1c', 'T1', 'T2a', 'T2b', 'T2', 'T3', 'T4'],
+    cats: ['TX', 'T0', 'Tis', 'T1', 'T1mi', 'T1a', 'T1b', 'T1c', 'T2', 'T2a', 'T2b', 'T3', 'T4'],
     agg: ['T1', 'T2'],
    /* kept in agg: parent category staged only via its subdivisions, so bare T1/T2 has no complete row */
     def: {
@@ -1168,7 +1168,7 @@ SITES.lung = {
     notes: 'For non-mucinous adenocarcinoma with a lepidic component, only the size of the INVASIVE component determines T. STAS must not be included in the size measurement. Pericardium / phrenic nerve / azygos vein invasion is T3 regardless of the depth of mediastinal penetration.'
   },
   N: {
-    cats: ['NX', 'N0', 'N1', 'N2a', 'N2b', 'N2', 'N3'],
+    cats: ['NX', 'N0', 'N1', 'N2', 'N2a', 'N2b', 'N3'],
     agg: ['N2'],
    /* kept in agg: parent category staged only via its subdivisions, so bare N2 has no complete row */
     def: {
@@ -1182,7 +1182,7 @@ SITES.lung = {
     }
   },
   M: {
-    cats: ['M0', 'M1a', 'M1b', 'M1c1', 'M1c2', 'M1c', 'M1'],
+    cats: ['M0', 'M1', 'M1a', 'M1b', 'M1c', 'M1c1', 'M1c2'],
     agg: ['M1'],
     def: {
       M0: 'No distant metastasis',
@@ -1499,7 +1499,7 @@ SITES.salivary = {
   ed: { v: 9, label: 'AJCC Version 9', eff: '2026-01-01' },
   scope: 'Version 9 extends the framework from major to all salivary glands. The gross-extraparenchymal-extension wording for T3 is written for major glands. Minor salivary gland tumours are staged with this protocol.',
   T: {
-    cats: ['TX', 'T0', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'], agg: [],
+    cats: ['TX', 'T0', 'Tis', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'], agg: [],
     def: {
       TX: 'Primary tumour cannot be assessed',
       T0: 'No evidence of primary tumour',
@@ -1560,7 +1560,7 @@ SITES.oesophagus = {
   ed: { v: 8, label: 'AJCC 8th Edition (2017)', eff: '2018-01-01' },
   scope: 'Carcinomas including squamous cell carcinoma, adenocarcinoma, adenosquamous carcinoma and undifferentiated carcinoma. Sarcomas, non-epithelial cancers and gastrointestinal stromal tumours are NOT staged with this protocol.',
   T: {
-    cats: ['TX', 'T0', 'Tis', 'T1a', 'T1b', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'T0', 'Tis', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     agg: ['T1', 'T4'],
    /* kept in agg: parent category staged only via its subdivisions, so bare T1/T4 has no complete row */
     def: {
@@ -1715,7 +1715,7 @@ SITES.appendix = {
   ed: { v: 9, label: 'AJCC Version 9', eff: '2023-01-01' },
   scope: 'Primary carcinoma of the appendix, including adenocarcinoma, LAMN and HAMN, poorly differentiated neuroendocrine carcinoma, and mixed adenocarcinoma-neuroendocrine carcinoma. Appendix neuroendocrine tumours are staged with the separate gastroenteropancreatic NET protocol.',
   T: {
-    cats: ['TX', 'T0', 'Tis', 'TisLAMN', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'T0', 'Tis', 'TisLAMN', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     agg: ['T4'],
    /* kept in agg: parent category staged only via its subdivisions, so bare T4 has no complete row */
     disp: { TisLAMN: 'Tis (LAMN)' },
@@ -2565,19 +2565,45 @@ SITES.prostate = {
    GRADE IS PART OF THE STAGE TABLE in this chapter, unlike renal cell carcinoma.
    It is therefore a real G axis constrained by the rows themselves, not an
    inStage:false extra and not an E axis.
-   INCLUDED: boneSarcoma, softTissueSarcomaTrunkExtremities,
+   INCLUDED: boneSarcoma (appendicular skeleton, trunk, skull and facial bones),
+   boneSarcomaSpine, boneSarcomaPelvis, softTissueSarcomaTrunkExtremities,
    softTissueSarcomaRetroperitoneum.
+
+   AJCC 8 PRINTS THREE SEPARATE T SCALES FOR BONE, and they are not
+   interchangeable. The source heads them as three separate blocks:
+     - "Categorization for appendicular skeleton, trunk, skull and facial bones"
+     - "Categorization for spine"
+     - "Categorization for pelvis"
+   They disagree about what the same symbol means. T1 is a size cut point in the
+   appendicular block but a segment count in the spine block and a segment count
+   plus an a/b size split in the pelvic block. T3 is discontinuous tumours in the
+   appendicular block, four or more adjacent vertebral segments in the spine
+   block, and two pelvic segments with extraosseous extension in the pelvic
+   block. The appendicular block is the only one of the three that has a T4, and
+   the spine and pelvis blocks are the only two that have T4a and T4b. So these
+   are three separate sites, not one site with a region selector: a single
+   combined picker would show one definition for T1 and one for T4a, and each of
+   those would be wrong for two of the three regions. The engine cannot vary a
+   category list by an E factor (axisCatList keys on catsByMode only, never on
+   the value of an E field), so a union list is the only shape available and it
+   would be actively misleading. Splitting the site is the faithful shape.
+
+   ONLY THE APPENDICULAR REGION HAS A STAGE GROUPING. The source states this
+   directly under its stage-groups heading: "There is no stage grouping for bone
+   tumors of the spine or pelvis", and EVS C136612 says verbatim "There are no
+   AJCC prognostic stage groupings for spine and pelvis. (from AJCC 8th Ed.)".
+   So boneSarcomaSpine and boneSarcomaPelvis reproduce their published T
+   categories and refuse every stage, in the same shape as the TNM-only chapter:
+   tableKinds with an empty sets array plus reject.
+
    NOT INCLUDED, AND NOT BECAUSE IT WAS FORGOTTEN:
-     - soft tissue sarcoma of the head and neck. EVS C136655 states verbatim
-       that it "needs data collection before defining a stage grouping for head
-       and neck sarcomas" and no such concept exists anywhere in the stage
-       hierarchy. There is no third table to build.
-     - bone sarcoma of the spine and of the pelvis. Both sources publish T
-       categories for them and both state in terms that no stage grouping
-       exists. The T scales are reproduced in the boneSarcoma notes.
-     - soft tissue sarcoma of the abdomen and thoracic visceral organs, and of
-       the orbit. Pathology Outlines publishes a T scale for the abdomen and
-       thoracic visceral organs but no stage grouping exists for it either. */
+      - soft tissue sarcoma of the head and neck. EVS C136655 states verbatim
+        that it "needs data collection before defining a stage grouping for head
+        and neck sarcomas" and no such concept exists anywhere in the stage
+        hierarchy. There is no third table to build.
+      - soft tissue sarcoma of the abdomen and thoracic visceral organs, and of
+        the orbit. Pathology Outlines publishes a T scale for the abdomen and
+        thoracic visceral organs but no stage grouping exists for it either. */
 
 /* ------------------------------------------------------------- bone sarcoma
    The single published stage table is qualified "For appendicular skeleton,
@@ -2597,7 +2623,7 @@ var BONE_SARCOMA_ROWS = [
 SITES.boneSarcoma = {
   id: 'boneSarcoma', name: 'Bone sarcoma', group: 'Bone & soft tissue sarcoma',
   ed: { v: 8, label: 'AJCC 8th edition' },
-  scope: 'Tumors arising in bone (including osteosarcoma, chondrosarcoma, Ewing sarcoma, spindle cell sarcoma, hemangioendothelioma, angiosarcoma, fibrosarcoma / myofibrosarcoma, chordoma and adamantinoma) are covered by this staging system. Hematolymphoid tumors (primary malignant lymphoma, multiple myeloma) are not covered by this staging system. THE STAGE TABLE PUBLISHED FOR THIS SITE IS SCOPED TO ONE REGION ONLY. The source prints the qualifier "For appendicular skeleton, trunk, skull and facial bones" directly above the table, and both sources state that there is no stage grouping for the spine or the pelvis, so only the T scale offered here is the one those stage groups apply to.',
+  scope: 'Tumors arising in bone (including osteosarcoma, chondrosarcoma, Ewing sarcoma, spindle cell sarcoma, hemangioendothelioma, angiosarcoma, fibrosarcoma / myofibrosarcoma, chordoma and adamantinoma) are covered by this staging system. Hematolymphoid tumors (primary malignant lymphoma, multiple myeloma) are not covered by this staging system. THE STAGE TABLE PUBLISHED FOR THIS SITE IS SCOPED TO ONE REGION ONLY. The source prints the qualifier "For appendicular skeleton, trunk, skull and facial bones" directly above the table, and both sources state that there is no stage grouping for the spine or the pelvis, so only the T scale offered here is the one those stage groups apply to. THE OTHER TWO PUBLISHED BONE SCALES ARE SEPARATE ENTRIES, "Bone sarcoma of the spine" and "Bone sarcoma of the pelvis", because the same symbols mean different things in each of the three and neither of the other two can be staged.',
   fixedPrefix: { T: 'p', N: 'p' },
   T: {
     cats: ['TX', 'T0', 'T1', 'T2', 'T3'],
@@ -2608,7 +2634,7 @@ SITES.boneSarcoma = {
       'T2': 'tumor > 8 cm in greatest dimension',
       'T3': 'discontinuous tumors in the primary bone site'
     },
-    notes: 'This is the T scale for the appendicular skeleton, trunk, skull and facial bones - the only region with a published stage grouping. The 8 cm cut point is the AJCC 8 change for this site. The page publishes two further T scales that have NO stage grouping, recorded here so the omission is visible rather than silent. FOR SPINE: TX primary tumor cannot be assessed; T0 no evidence of primary tumor; T1 tumor confined to 1 vertebral segment or 2 adjacent vertebral segments; T2 tumor confined to 3 adjacent vertebral segments; T3 tumor confined to 4 or more adjacent vertebral segments or any nonadjacent vertebral segments; T4 extension into the spinal canal or great vessels, subdivided into T4a extension into the spinal canal and T4b evidence of gross vascular invasion or tumor thrombus in the great vessels. Spine segments include right body, left body, right pedicle, left pedicle and posterior element. FOR PELVIS: TX primary tumor cannot be assessed; T0 no evidence of primary tumor; T1 tumor confined to 1 pelvic segment with no extraosseous extension, subdivided into T1a tumor <= 8 cm in greatest dimension and T1b tumor > 8 cm in greatest dimension; then T2, T3 and T4 each similarly subdivided at 8 cm. Neither scale is selectable here because no stage grouping exists for either, so a case staged with them would have no group to land in. Note also that Pathology Outlines defines the pelvic T4a and T4b by SIZE, whereas the NCI Thesaurus defines them by ANATOMY (sacroiliac joint, external iliac vessels); the anatomic qualifiers are not published on the Pathology Outlines page.'
+    notes: 'This is the T scale for the appendicular skeleton, trunk, skull and facial bones - the only one of the three published bone scales that has a stage grouping. The 8 cm cut point is the AJCC 8 change for this site, and it is the only measurement in the scale. THE ABSENCE OF T4 HERE IS CORRECT FOR THIS REGION AND IS NOT AN OMISSION. The source publishes three separate bone T scales, and the other two do carry a T4: "Bone sarcoma of the spine" has T4 subdivided into T4a and T4b, and "Bone sarcoma of the pelvis" has T4 subdivided into T4a and T4b by size. Neither of those scales can be staged, because the source states that there is no stage grouping for the spine or the pelvis, so those two entries reproduce their categories and refuse every stage. Use them instead of this one for a spinal or pelvic primary, because T1 means a size cut point here, a vertebral segment count in the spine, and a pelvic segment count in the pelvis, and T3 means discontinuous tumours in the primary bone site here and something else in each of the other two. This entry also differs from the other two in the opposite direction: it is the only one of the three where the bare parents T1, T2 and T3 are the staged categories, because its stage table is built on them.'
   },
   N: {
     cats: ['NX', 'N0', 'N1'],
@@ -2660,7 +2686,161 @@ SITES.boneSarcoma = {
     'PathologyOutlines.com/topic/bonestaging.html (Gonzalez RS, author update 7 April 2026, staff update 7 April 2026) - stage table, T/N/M category wording, grade',
     'C136612  Bone Cancer by AJCC v8 Stage, synonym "Appendicular Skeleton, Trunk, Skull, and Facial Bones Cancer by AJCC v8 Stage" (NCI Thesaurus EVS) - stage rows, and the statement that there are no prognostic stage groupings for spine and pelvis'
   ],
-  notes: 'THE STAGE TABLE IS SINGLE-REGION AND THAT IS THE SOURCE, NOT A LIMITATION OF THIS FILE. The published table carries the qualifier "For appendicular skeleton, trunk, skull and facial bones", and the NCI Thesaurus parent concept states verbatim: "There are no AJCC prognostic stage groupings for spine and pelvis. (from AJCC 8th Ed.)" Both the T scales for spine and for pelvis are reproduced in the T notes so the exclusion is visible, but neither is selectable, because a case staged on either scale would have no group to land in. THE PRINTED T CELL "T2 - 3" IS WRITTEN AS AN EXPLICIT LIST, T2,T3. The printed form is a bare numeric range; it happens to parse, but an explicit list cannot silently drop a category the way a lettered range such as T1a-3c does, so the list is used and the printed form recorded here. "ANY T" IS TAKEN LITERALLY, WHICH INCLUDES TX AND T0. The IVA and both IVB rows print "any T", and that is taken at face value, so TX or T0 with nodal or distant disease does receive Stage group IVA or IVB. The asymmetry is the source own: the N0 M0 rows name T1, T2 and T3 specifically, so TX and T0 with N0 M0 have no row at all. That case is refused with that reason rather than being rounded to the nearest group. THERE ARE TWO ROWS LABELLED IVB, WHICH IS HOW THE SOURCE PRINTS IT. One row is Any T, N1, Any M, Any G and the other is Any T, Any N, M1b, Any G. They overlap at N1 M1b and both name the same group, so no case is given two different answers. NOTE THAT M1b IS ALONE IN THE SECOND IVB ROW while M1a sits in IVA, so lung-only metastasis is Stage IVA and every other distant site is Stage IVB - which is the reverse of the more familiar pattern and is easy to misremember. The yp and r bases reuse the pathologic table by convention; the source publishes no post-neoadjuvant or recurrent bone table, and it does define the prefixes y (preoperative radiotherapy or chemotherapy) and r (recurrent tumor stage).'
+  notes: 'THE STAGE TABLE IS SINGLE-REGION AND THAT IS THE SOURCE, NOT A LIMITATION OF THIS FILE. The published table carries the qualifier "For appendicular skeleton, trunk, skull and facial bones", and the NCI Thesaurus parent concept states verbatim: "There are no AJCC prognostic stage groupings for spine and pelvis. (from AJCC 8th Ed.)" Both the T scales for spine and for pelvis are now selectable, as the separate entries "Bone sarcoma of the spine" and "Bone sarcoma of the pelvis", because they are published categories and a reader staging a spinal or pelvic primary needs to be able to record pT4a rather than be told the category does not exist. Neither carries a stage table, because a case staged on either scale would have no group to land in and the source is explicit that none exists. THE THREE SCALES ARE NOT MERGED INTO ONE ENTRY, and the reason is that they are not variants of a single scale. Reading across the three, T1 is a size cut point in the appendicular scale, a count of one or two adjacent vertebral segments in the spine, and one pelvic segment with no extraosseous extension in the pelvis; T3 is discontinuous tumours in the appendicular scale, four or more adjacent or any nonadjacent vertebral segments in the spine, and two pelvic segments with extraosseous extension in the pelvis; and T4 exists in the spine and the pelvis but not in the appendicular scale, which is the difference that prompted the split. A single entry would have to give T1 and T4a one definition each, and each of those would then be wrong for two of the three regions. The engine could not have expressed a region-dependent category list in any case, since axisCatList keys on catsByMode and never on the value of an E field. THE PRINTED T CELL "T2 - 3" IS WRITTEN AS AN EXPLICIT LIST, T2,T3. The printed form is a bare numeric range; it happens to parse, but an explicit list cannot silently drop a category the way a lettered range such as T1a-3c does, so the list is used and the printed form recorded here. "ANY T" IS TAKEN LITERALLY, WHICH INCLUDES TX AND T0. The IVA and both IVB rows print "any T", and that is taken at face value, so TX or T0 with nodal or distant disease does receive Stage group IVA or IVB. The asymmetry is the source own: the N0 M0 rows name T1, T2 and T3 specifically, so TX and T0 with N0 M0 have no row at all. That case is refused with that reason rather than being rounded to the nearest group. THERE ARE TWO ROWS LABELLED IVB, WHICH IS HOW THE SOURCE PRINTS IT. One row is Any T, N1, Any M, Any G and the other is Any T, Any N, M1b, Any G. They overlap at N1 M1b and both name the same group, so no case is given two different answers. NOTE THAT M1b IS ALONE IN THE SECOND IVB ROW while M1a sits in IVA, so lung-only metastasis is Stage IVA and every other distant site is Stage IVB - which is the reverse of the more familiar pattern and is easy to misremember. The yp and r bases reuse the pathologic table by convention; the source publishes no post-neoadjuvant or recurrent bone table, and it does define the prefixes y (preoperative radiotherapy or chemotherapy) and r (recurrent tumor stage).'
+};
+
+/* ------------------------------------------------- bone sarcoma of the spine
+   The second of the three published bone T scales. It has a T4, subdivided into
+   T4a and T4b, which the appendicular scale does not have, and it is built on
+   vertebral segment COUNT rather than on size. No stage grouping exists, so
+   every input is refused. */
+var BONE_SPINE_REJECT =
+  'AJCC publishes a T scale for bone tumors of the spine - it is headed "Categorization for spine" on the source ' +
+  'page - but publishes NO prognostic stage group for it, so no combination of pT/pN/pM can be assigned a stage ' +
+  'here. The source states this directly: "There is no stage grouping for bone tumors of the spine or pelvis". The ' +
+  'NCI Thesaurus says the same of both regions: "There are no AJCC prognostic stage groupings for spine and ' +
+  'pelvis. (from AJCC 8th Ed.)". The categories below are offered so the TNM extent can still be recorded, and ' +
+  'none of them produces a stage. Nothing is invented to fill the gap: no Stage I to IV is offered for a spinal ' +
+  'primary, because no source publishes one. If the primary is in the appendicular skeleton, trunk, skull or ' +
+  'facial bones, use the "Bone sarcoma" entry, which is the only one of the three with a stage grouping. Note that ' +
+  'this T scale is not a variant of that one: T1 here counts vertebral segments, while T1 there is a size cut point.';
+
+SITES.boneSarcomaSpine = {
+  id: 'boneSarcomaSpine', name: 'Bone sarcoma of the spine', group: 'Bone & soft tissue sarcoma',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'The spine T scale for tumors arising in bone, as printed under the source heading "Categorization for spine". This is a separate primary-tumour scale from the appendicular skeleton, trunk, skull and facial bones scale, not a variant of it, and it is the only one of the two that carries a T4 with T4a and T4b. Chordoma is named in the source definition of the bone staging system and arises in bone, so it is in scope here as it is for the appendicular entry. NO STAGE GROUPING IS PUBLISHED FOR THIS REGION, so every stage is refused and the categories are offered for TNM extent recording only.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  tableKinds: [{ k: 'tnb', label: 'TNM categories only (no prognostic stage group published)' }],
+  sets: [],
+  T: {
+    cats: ['TX', 'T0', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
+    def: {
+      'TX': 'primary tumor cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'T1': 'tumor confined to 1 vertebral segment or 2 adjacent vertebral segments',
+      'T2': 'tumor confined to 3 adjacent vertebral segments',
+      'T3': 'tumor confined to 4 or more adjacent vertebral segments or any nonadjacent vertebral segments',
+      'T4': 'extension into the spinal canal or great vessels',
+      'T4a': 'extension into the spinal canal',
+      'T4b': 'evidence of gross vascular invasion or tumor thrombus in the great vessels'
+    },
+    notes: 'THE SPINE SCALE IS BUILT ON SEGMENT COUNT AND HAS NO SIZE CUT POINT AT ALL, which is the single biggest difference from the appendicular scale. The appendicular scale splits T1 against T2 at 8 cm; here there is no measurement in any category, and T1 to T3 are defined purely by how many vertebral segments are involved and whether they are adjacent. T4 IS THE ANSWER TO THE QUESTION THIS ENTRY EXISTS FOR: the appendicular scale has no T4 at all, so the absence of T4 there is correct for that region and is not an omission, while here T4 is published and is subdivided. T4a and T4b are both children of T4 and both are offered, so T4 can be recorded as the unsplit parent. The source prints T4 as "extension into the spinal canal or great vessels", which is exactly the union of its own two children, so a reader who knows only that one of the two is involved may record T4. The source note on segment counting is reproduced because it decides what counts as a segment: "Spine segments include right body, left body, right pedicle, left pedicle and posterior element". T2 and T3 both turn on adjacency, since T3 counts "4 or more adjacent vertebral segments OR any nonadjacent vertebral segments" - so a single skipped level is enough to reach T3.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1'],
+    def: {
+      'NX': 'regional lymph nodes cannot be assessed',
+      'N0': 'no regional lymph node metastases',
+      'N1': 'regional lymph node metastases'
+    },
+    notes: 'The source prints one N scale for bone staging as a whole, with no regional qualifier, and it is the same for the spine as for the appendicular skeleton, so those exact categories are used. The plural wording of N0 and N1 is the source wording. The published caution also applies here: bone sarcomas very rarely involve lymph nodes, so NX can generally be assumed to represent N0 unless nodal involvement is evident clinically or pathologically. That is a clinical assumption for the reader, not a published rule, so NX is offered as a category.'
+  },
+  M: {
+    cats: ['M0', 'M1', 'M1a', 'M1b'],
+    def: {
+      'M0': 'no distant metastasis',
+      'M1': 'distant metastasis',
+      'M1a': 'lung',
+      'M1b': 'secondary bone or other distant sites (including distant lymph nodes)'
+    },
+    notes: 'One M scale is printed for bone staging as a whole, unqualified by region, so it is the same here. M1a is lung and M1b is secondary bone or other distant sites including distant lymph nodes; there is no M1c for bone. M1 is published as the parent of M1a and M1b and is offered so the unsplit category can be recorded. Nothing here is staged, so unlike the appendicular entry there is no question of resolving a bare M1.'
+  },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3'],
+    def: {
+      'GX': 'grade cannot be assessed',
+      'G1': 'well differentiated, low grade',
+      'G2': 'moderately differentiated, high grade',
+      'G3': 'poorly differentiated, high grade'
+    },
+    notes: 'The source heads this section "Histologic grade (G) (generally tumor specific)" and prints one grade scale for bone staging as a whole, so it is reproduced here unchanged and in the source own G1 to G3 wording, which is not the FNCLCC score wording used for soft tissue sarcoma. Grade is offered so it can be recorded alongside the T/N/M extent. It has no staging role in this entry, because no stage grouping exists for the spine at all, so no combination of grade and stage is being claimed.'
+  },
+  reject: function () { return BONE_SPINE_REJECT; },
+  sources: [
+    'PathologyOutlines.com/topic/bonestaging.html (Gonzalez RS, author update 7 April 2026, staff update 7 April 2026) - the "Categorization for spine" block verbatim, the "Spine segments include right body, left body, right pedicle, left pedicle and posterior element" note, the unqualified N/M/G scales, the grade scale, and the verbatim "There is no stage grouping for bone tumors of the spine or pelvis"',
+    'C136612  Bone Cancer by AJCC v8 Stage (NCI Thesaurus EVS) - the verbatim "There are no AJCC prognostic stage groupings for spine and pelvis. (from AJCC 8th Ed.)", which is why this entry refuses every stage rather than carrying the appendicular table'
+  ],
+  notes: 'The source prints the spine T categories inside the same Primary tumor (pT) section as the other two regional scales, under its own subheading, so they are one published scale rather than three versions of one. The three scales are kept as three separate entries in this app because they assign different meanings to the same symbols: T1 is a size cut point in the appendicular scale, a segment count in this one, and a segment count with an a/b size split in the pelvic one, and only this scale and the pelvic one have a T4. Merging them would force a single definition onto T1 and onto T4a, and each of those definitions would then be wrong for two of the three regions, which is the opposite of what this app is for.'
+};
+
+/* ------------------------------------------------- bone sarcoma of the pelvis
+   The third published bone T scale, and the most subdivided: every category
+   from T1 to T4 carries an a/b size split at 8 cm. No stage grouping exists. */
+var BONE_PELVIS_REJECT =
+  'AJCC publishes a T scale for bone tumors of the pelvis - it is headed "Categorization for pelvis" on the source ' +
+  'page - but publishes NO prognostic stage group for it, so no combination of pT/pN/pM can be assigned a stage ' +
+  'here. The source states this directly: "There is no stage grouping for bone tumors of the spine or pelvis". The ' +
+  'NCI Thesaurus says the same of both regions: "There are no AJCC prognostic stage groupings for spine and ' +
+  'pelvis. (from AJCC 8th Ed.)". The categories below are offered so the TNM extent can still be recorded, and ' +
+  'none of them produces a stage. Nothing is invented to fill the gap: no Stage I to IV is offered for a pelvic ' +
+  'primary, because no source publishes one. If the primary is in the appendicular skeleton, trunk, skull or ' +
+  'facial bones, use the "Bone sarcoma" entry, which is the only one of the three with a stage grouping. Pelvic ' +
+  'sarcomas are common enough that this gap matters in practice, and it is a gap in the published staging system ' +
+  'rather than in this app: the 8 cm cut point is carried all the way through this scale, but nothing consumes it.';
+
+SITES.boneSarcomaPelvis = {
+  id: 'boneSarcomaPelvis', name: 'Bone sarcoma of the pelvis', group: 'Bone & soft tissue sarcoma',
+  ed: { v: 8, label: 'AJCC 8th edition' },
+  scope: 'The pelvic T scale for tumors arising in bone, as printed under the source heading "Categorization for pelvis". This is a separate primary-tumour scale from the appendicular skeleton, trunk, skull and facial bones scale, not a variant of it, and it is the most subdivided of the three: every category from T1 to T4 carries an a/b split at 8 cm. NO STAGE GROUPING IS PUBLISHED FOR THIS REGION, so every stage is refused and the categories are offered for TNM extent recording only.',
+  fixedPrefix: { T: 'p', N: 'p' },
+  tableKinds: [{ k: 'tnb', label: 'TNM categories only (no prognostic stage group published)' }],
+  sets: [],
+  T: {
+    cats: ['TX', 'T0', 'T1', 'T1a', 'T1b', 'T2', 'T2a', 'T2b', 'T3', 'T3a', 'T3b', 'T4', 'T4a', 'T4b'],
+    def: {
+      'TX': 'primary tumor cannot be assessed',
+      'T0': 'no evidence of primary tumor',
+      'T1': 'tumor confined to 1 pelvic segment with no extraosseous extension',
+      'T1a': 'tumor <= 8 cm in greatest dimension',
+      'T1b': 'tumor > 8 cm in greatest dimension',
+      'T2': 'tumor confined to 1 pelvic segment with extraosseous extension or 2 segments without extraosseous extension',
+      'T2a': 'tumor <= 8 cm in greatest dimension',
+      'T2b': 'tumor > 8 cm in greatest dimension',
+      'T3': 'tumor spanning 2 pelvic segments with extraosseous extension',
+      'T3a': 'tumor <= 8 cm in greatest dimension',
+      'T3b': 'tumor > 8 cm in greatest dimension',
+      'T4': 'tumor spanning 3 pelvic segments or crossing the sacroiliac joint',
+      'T4a': 'tumor <= 8 cm in greatest dimension',
+      'T4b': 'tumor <= 8 cm in greatest dimension'
+    },
+    notes: 'EVERY CATEGORY FROM T1 TO T4 IS SPLIT AT 8 cm HERE, so unlike the appendicular scale, where the bare parents T1, T2 and T3 are the staged categories and 8 cm only separates T1 from T2, this scale needs a size to say anything precise: T1, T2, T3 and T4 are all parents of an a/b pair. The bare parents are still offered so an unsplit extent can be recorded, and each a/b pair is offered so the size can be. THE SOURCE PRINTS T4a AND T4b WITH IDENTICAL WORDING - both are "tumor <= 8 cm in greatest dimension" - and that is reproduced here exactly as printed rather than corrected, because this app does not silently amend a source. It is recorded as a discrepancy here instead: at T1, T2 and T3 the pair is unambiguously <= 8 cm then > 8 cm, so a T4b printed as <= 8 cm is almost certainly a printing error for > 8 cm. The wording above is left wrong on purpose so the page and this entry agree, and a reader who needs the corrected value is told what the correction would be rather than being given it unlabelled. THE SAME TWO CATEGORIES ARE ALSO DEFINED BY ANATOMY RATHER THAN BY SIZE IN THE OTHER PUBLISHED SOURCE, and that is the more substantive conflict: the NCI Thesaurus and the AJR review of the AJCC 8 tables give pelvic T4a as involving the sacroiliac joint and extending medial to the sacral neuroforamen, and T4b as encasing the external iliac vessels or showing gross tumor thrombus in the major pelvic vessels. The source page used for the wording above prints only the size version, so the anatomic qualifiers cannot be reproduced from it. The two sources therefore describe T4a and T4b on incompatible axes, size versus anatomy, and neither is silently preferred here. The source note on segment counting is reproduced because it decides how many segments there are: "Pelvic segments include sacrum, iliac wing, pubic rami / symphysis / ischium and acetabulum / periacetabulum". Extraosseous extension is what separates the pelvic T1 from the pelvic T2, so it is not a detail here - it is the boundary between two categories.'
+  },
+  N: {
+    cats: ['NX', 'N0', 'N1'],
+    def: {
+      'NX': 'regional lymph nodes cannot be assessed',
+      'N0': 'no regional lymph node metastases',
+      'N1': 'regional lymph node metastases'
+    },
+    notes: 'The source prints one N scale for bone staging as a whole, with no regional qualifier, and it is the same for the pelvis as for the appendicular skeleton, so those exact categories are used. The plural wording of N0 and N1 is the source wording. The published caution applies here too, and it matters more for pelvic primaries than for others: bone sarcomas very rarely involve lymph nodes, so NX can generally be assumed to represent N0 unless nodal involvement is evident clinically or pathologically. That is a clinical assumption for the reader, not a published rule, so NX is offered as a category.'
+  },
+  M: {
+    cats: ['M0', 'M1', 'M1a', 'M1b'],
+    def: {
+      'M0': 'no distant metastasis',
+      'M1': 'distant metastasis',
+      'M1a': 'lung',
+      'M1b': 'secondary bone or other distant sites (including distant lymph nodes)'
+    },
+    notes: 'One M scale is printed for bone staging as a whole, unqualified by region, so it is the same here. M1a is lung and M1b is secondary bone or other distant sites including distant lymph nodes; there is no M1c for bone. M1 is published as the parent of M1a and M1b and is offered so the unsplit category can be recorded. Nothing here is staged, so unlike the appendicular entry there is no question of resolving a bare M1.'
+  },
+  G: {
+    cats: ['GX', 'G1', 'G2', 'G3'],
+    def: {
+      'GX': 'grade cannot be assessed',
+      'G1': 'well differentiated, low grade',
+      'G2': 'moderatively differentiated, high grade',
+      'G3': 'poorly differentiated, high grade'
+    },
+    notes: 'The source heads this section "Histologic grade (G) (generally tumor specific)" and prints one grade scale for bone staging as a whole, so it is reproduced here unchanged and in the source own G1 to G3 wording, which is not the FNCLCC score wording used for soft tissue sarcoma. Grade is offered so it can be recorded alongside the T/N/M extent. It has no staging role in this entry, because no stage grouping exists for the pelvis at all, so no combination of grade and stage is being claimed.'
+  },
+  reject: function () { return BONE_PELVIS_REJECT; },
+  sources: [
+    'PathologyOutlines.com/topic/bonestaging.html (Gonzalez RS, author update 7 April 2026, staff update 7 April 2026) - the "Categorization for pelvis" block verbatim including the identical wording printed for T4a and T4b, the "Pelvic segments include sacrum, iliac wing, pubic rami / symphysis / ischium and acetabulum / periacetabulum" note, the unqualified N/M/G scales, the grade scale, and the verbatim "There is no stage grouping for bone tumors of the spine or pelvis"',
+    'C136612  Bone Cancer by AJCC v8 Stage (NCI Thesaurus EVS) - the verbatim "There are no AJCC prognostic stage groupings for spine and pelvis. (from AJCC 8th Ed.)", and the ANATOMIC rather than size based definitions of pelvic T4a (sacroiliac joint, extending medial to the sacral neuroforamen) and T4b (encasing the external iliac vessels, or gross tumor thrombus in the major pelvic vessels), recorded here as a source disagreement rather than substituted for the printed size wording',
+    'ajronline.org/doi/10.2214/AJR.21.25658 (AJR 2021, Setting the Stage for 2020) - confirms that AJCC 8 differentiates osseous sarcomas into three categories by site of origin and reproduces the same anatomic T4a and T4b definitions for the pelvis; it also prints the pelvic T2 wording as "Two segments with extraosseous extension", which contradicts the "2 segments without extraosseous extension" printed on the source page used above'
+  ],
+  notes: 'The pelvic scale is the one place in bone staging where a bare parent category and its a/b children are BOTH needed, because the 8 cm cut point runs through every level T1 to T4 rather than only through T1 against T2. The appendicular entry stages on the bare parents; this entry cannot stage at all, so all fourteen categories are offered and none of them produces a group. Three separate entries are used for the three published bone scales rather than one entry with a region selector, because the same symbol means different things in each: T1 is a size cut point in the appendicular scale and a segment count in the pelvic one, T3 is discontinuous tumours in the appendicular scale and two pelvic segments with extraosseous extension here, and T4 exists in neither the appendicular scale nor the spine scale in this form while here it spans three segments or crosses the sacroiliac joint.'
 };
 
 /* --------------------------------------------------- soft tissue sarcoma
@@ -3968,7 +4148,7 @@ SITES.colon = {
     def: { 'NX': 'Regional lymph nodes cannot be assessed.', 'N0': 'No metastasis to regional lymph nodes.', 'N1': 'Metastasis in one to three regional nodes (tumor in nodes measuring 0.2 mm or more), OR any number of tumor deposits present with all identifiable lymph nodes negative.', 'N1a': 'Metastasis in one regional node.', 'N1b': 'Metastasis in two or three regional nodes.', 'N1c': 'No regional lymph nodes positive, but tumor deposits in the subserosa, mesentery, or nonperitonealized pericolic, or perirectal/mesorectal tissues.', 'N2': 'Metastasis in four or more regional nodes.', 'N2a': 'Metastasis in four to six regional nodes.', 'N2b': 'Metastasis in seven or more regional nodes.' }
   },
   M: {
-    cats: ['M0', 'M1a', 'M1b', 'M1c', 'M1'],
+    cats: ['M0', 'M1', 'M1a', 'M1b', 'M1c'],
     def: { 'M0': 'No evidence of distant metastasis by imaging; no evidence of tumor in distant sites or organs. Not assigned by pathologists.', 'M1a': 'Metastasis to one site or organ, without peritoneal metastasis.', 'M1b': 'Metastasis to two or more sites or organs, without peritoneal metastasis.', 'M1c': 'Peritoneal surface alone or with other site/organ metastases.', 'M1': 'Metastasis to one or more distant sites/organs OR peritoneal metastasis identified.' }
   },
   noStage: function (inp) {
@@ -4023,7 +4203,7 @@ SITES.rectum = {
     def: { 'NX': 'Regional lymph nodes cannot be assessed.', 'N0': 'No metastasis to regional lymph nodes.', 'N1': 'Metastasis in one to three regional nodes (tumor in nodes measuring 0.2 mm or more), OR any number of tumor deposits present with all identifiable lymph nodes negative.', 'N1a': 'Metastasis in one regional node.', 'N1b': 'Metastasis in two or three regional nodes.', 'N1c': 'No regional lymph nodes positive, but tumor deposits in the subserosa, mesentery, or nonperitonealized pericolic, or perirectal/mesorectal tissues.', 'N2': 'Metastasis in four or more regional nodes.', 'N2a': 'Metastasis in four to six regional nodes.', 'N2b': 'Metastasis in seven or more regional nodes.' }
   },
   M: {
-    cats: ['M0', 'M1a', 'M1b', 'M1c', 'M1'],
+    cats: ['M0', 'M1', 'M1a', 'M1b', 'M1c'],
     def: { 'M0': 'No evidence of distant metastasis by imaging; no evidence of tumor in distant sites or organs. Not assigned by pathologists.', 'M1a': 'Metastasis to one site or organ, without peritoneal metastasis.', 'M1b': 'Metastasis to two or more sites or organs, without peritoneal metastasis.', 'M1c': 'Peritoneal surface alone or with other site/organ metastases.', 'M1': 'Metastasis to one or more distant sites/organs OR peritoneal metastasis identified.' }
   },
   noStage: function (inp) {
@@ -4120,7 +4300,7 @@ SITES.cutaneousSCCBCC = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Basal cell carcinoma and cutaneous squamous cell carcinoma of the head and neck. One prognostic stage table serves both clinical and pathologic staging; the cTNM and pTNM category definitions differ.',
   T: {
-    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     def: { 'TX': 'Primary tumor cannot be identified.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor <=2 cm in greatest dimension.', 'T2': 'Tumor >2 cm, but <=4 cm in greatest dimension.', 'T3': 'Tumor >4 cm in maximum dimension or minor bone erosion or perineural invasion or deep invasion. FOOTNOTE b: deep invasion is defined as invasion beyond the subcutaneous fat or >6 mm (as measured from the granular layer of adjacent normal epidermis to the base of the tumor); perineural invasion for T3 classification is defined as tumor cells within the nerve sheath of a nerve lying deeper than the dermis or measuring >=0.1 mm in caliber, or presenting with clinical or radiographic involvement of named nerves without skull base invasion or transgression.', 'T4a': 'Tumor with gross cortical bone/marrow invasion.', 'T4b': 'Tumor with skull base invasion and/or skull base foramen involvement.', 'T4': 'Tumor with gross cortical bone/marrow, skull base invasion and/or skull base foramen invasion.' }
   },
   /* AJCC 8 publishes TWO separate N tables here - Table 2 (pN) and Table 3 (cN) -
@@ -4198,7 +4378,7 @@ SITES.eyelid = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Carcinoma of the eyelid. One prognostic stage table serves both clinical and pathologic staging. Histologic type (sebaceous carcinoma vs others) is reported separately and does not change the stage group.',
   T: {
-    cats: ['TX', 'Tis', 'T1a', 'T1b', 'T1c', 'T2a', 'T2b', 'T2c', 'T3', 'T4a', 'T4b', 'T0', 'T1', 'T2', 'T3a', 'T3b', 'T3c', 'T4'],
+    cats: ['TX', 'T0', 'Tis', 'T1', 'T1a', 'T1b', 'T1c', 'T2', 'T2a', 'T2b', 'T2c', 'T3', 'T3a', 'T3b', 'T3c', 'T4', 'T4a', 'T4b'],
     agg: ['T2'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1a': 'Tumor does not invade the tarsal plate or eyelid margin.', 'T1b': 'Tumor invades the tarsal plate or eyelid margin.', 'T1c': 'Tumor involves full thickness of the eyelid.', 'T2a': 'Tumor does not invade the tarsal plate or eyelid margin.', 'T2b': 'Tumor invades the tarsal plate or eyelid margin.', 'T2c': 'Tumor involves full thickness of the eyelid.', 'T3': 'Tumor >20 mm but <=30 mm in greatest dimension.', 'T4a': 'Tumor invades ocular or intraorbital structures.', 'T4b': 'Tumor invades (or erodes through) the bony walls of the orbit or extends to the paranasal sinuses or invades the lacrimal sac/nasolacrimal duct or brain.', 'T0': 'No evidence of primary tumor.', 'T1': 'Tumor <=10 mm in greatest dimension.', 'T2': 'Tumor >10 mm but <=20 mm in greatest dimension.', 'T3a': 'Tumor does not invade the tarsal plate or eyelid margin.', 'T3b': 'Tumor invades the tarsal plate or eyelid margin.', 'T3c': 'Tumor involves full thickness of the eyelid.', 'T4': 'Any eyelid tumor that invades adjacent ocular, orbital, or facial structures.' }
   },
@@ -4340,7 +4520,7 @@ SITES.lipOralCavity = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Carcinoma of the lip and oral cavity. BASE OF TONGUE IS NOT STAGED HERE: AJCC 8 stages base of tongue under oropharyngeal carcinoma, so a base-of-tongue primary belongs in one of the oropharynx entries, chosen by p16 status. One stage-group table (Tables 4-8) serves both clinical and pathologic staging, and it is the same table used for p16-negative oropharynx, hypopharynx and larynx. DOI = depth of invasion; ENE = extranodal extension.',
   T: {
-    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     agg: ['T4'],
    /* kept in agg: parent category staged only via its subdivisions, so bare T4 has no complete row */
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor <=2 cm with DOI <=5 mm.', 'T2': 'Tumor <=2 cm with DOI >5 mm or tumor >2 cm and <=4 cm with DOI <=10 mm.', 'T3': 'Tumor >2 cm and <=4 cm with DOI >10 mm or tumor >4 cm with DOI <=10 mm.', 'T4': 'Moderately advanced or very advanced local disease.', 'T4a': 'Moderately advanced local disease. Tumor >4 cm with DOI >10 mm or tumor invades adjacent structures only (e.g., through cortical bone of the mandible or maxilla or involves the maxillary sinus or skin of the face).', 'T4b': 'Very advanced local disease. Tumor invades masticator space, pterygoid plates, or skull base and/or encases the internal carotid artery.' },
@@ -4394,7 +4574,7 @@ SITES.oropharynxHPVneg = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'p16-negative oropharyngeal carcinoma. Staged with the shared "lip and oral cavity / oropharynx / hypopharynx" table. Requires p16 immunohistochemistry; a p16-positive tumour is staged with the separate HPV-associated oropharynx protocol.',
   T: {
-    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     agg: ['T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor <=2 cm in greatest dimension.', 'T2': 'Tumor >2 cm but <=4 cm in greatest dimension.', 'T3': 'Tumor >4 cm in greatest dimension or extension to lingual surface of epiglottis.', 'T4a': 'Moderately advanced local disease. Tumor invades the larynx, extrinsic muscle of the tongue, medial pterygoid, hard palate, or mandible.', 'T4b': 'Very advanced local disease. Tumor invades lateral pterygoid muscle, pterygoid plates, lateral nasopharynx, or skull base or encases carotid artery.', 'T4': 'Moderately advanced or very advanced local disease.' }
   },
@@ -4442,7 +4622,7 @@ SITES.hypopharynx = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Carcinoma of the hypopharynx. One stage table serves both clinical and pathologic staging; AJCC 8 does not subdivide by hypopharyngeal subsite.',
   T: {
-    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'Tis', 'T1', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     agg: ['T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'Tumor limited to one subsite of hypopharynx and/or <=2 cm in greatest dimension.', 'T2': 'Tumor invades more than one subsite of hypopharynx or an adjacent site, or measures >2 cm but <=4 cm in greatest dimension without fixation of hemilarynx.', 'T3': 'Tumor >4 cm in greatest dimension or with fixation of hemilarynx or extension to esophageal mucosa.', 'T4a': 'Moderately advanced local disease. Tumor invades thyroid/cricoid cartilage, hyoid bone, thyroid gland, esophageal muscle, or central compartment soft tissue.', 'T4b': 'Very advanced local disease. Tumor invades prevertebral fascia, encases carotid artery, or involves mediastinal structures.', 'T4': 'Moderately advanced and very advanced local disease.' }
   },
@@ -4522,7 +4702,7 @@ SITES.larynx = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Carcinoma of the larynx. The T definitions DIFFER between supraglottis, glottis and subglottis, so the subsite must be selected; the stage-group table itself is shared.',
   T: {
-    cats: ['TX', 'Tis', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T4a', 'T4b', 'T4'],
+    cats: ['TX', 'Tis', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T4', 'T4a', 'T4b'],
     agg: ['T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'Tis': 'Carcinoma in situ.', 'T1': 'SUPRAGLOTTIS: tumour limited to one subsite of the supraglottis with normal vocal cord mobility. GLOTTIS: tumour limited to the vocal cord(s) (may involve the anterior or posterior commissure) with normal mobility (aggregate of T1a/T1b). SUBGLOTTIS: tumour limited to the subglottis.', 'T1a': 'Tumor limited to one vocal cord.', 'T1b': 'Tumor involves both vocal cords.', 'T2': 'SUPRAGLOTTIS: tumour invades mucosa of more than one adjacent subsite of the supraglottis or glottis or region outside the supraglottis (e.g. mucosa of base of tongue, vallecula, medial wall of pyriform sinus) without fixation of the larynx. GLOTTIS: tumour extends to the supraglottis and/or subglottis, and/or with impaired vocal cord mobility. SUBGLOTTIS: tumour extends to the vocal cord(s) with normal or impaired mobility.', 'T3': 'All three subsites: tumour limited to the larynx with vocal cord fixation and/or invades any of the paraglottic space or inner cortex of the thyroid cartilage.', 'T4a': 'Moderately advanced local disease. Supraglottis: invades through the outer cortex of the thyroid cartilage and/or invades tissues beyond the larynx (e.g. trachea, soft tissues of the neck including deep extrinsic muscle of tongue, strap muscles, thyroid or oesophagus). Glottis: invades the outer cortex of the thyroid cartilage and/or invades tissues beyond the larynx. Subglottis: invades the cricoid or thyroid cartilage and/or invades tissues beyond the larynx.', 'T4b': 'Very advanced local disease. Tumour invades the prevertebral space, and/or encases the carotid artery or mediastinal vessels.', 'T4': 'Moderately advanced or very advanced.' }
   },
@@ -4618,7 +4798,7 @@ SITES.thyroidDiff = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Papillary and follicular carcinoma of the thyroid. AJCC 8 uses TWO different stage tables selected by AGE AT DIAGNOSIS: patients under 55 and patients 55 and over.',
   T: {
-    cats: ['TX', 'T0', 'T1a', 'T1b', 'T2', 'T3a', 'T3b', 'T4a', 'T4b', 'T1', 'T3', 'T4'],
+    cats: ['TX', 'T0', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T3a', 'T3b', 'T4', 'T4a', 'T4b'],
     agg: ['T3', 'T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'T0': 'No evidence of primary tumor.', 'T1a': 'Tumor <=1 cm in greatest dimension, limited to the thyroid.', 'T1b': 'Tumor >1 cm but <=2 cm in greatest dimension, limited to the thyroid.', 'T2': 'Tumor >2 cm but <=4 cm in greatest dimension, limited to the thyroid.', 'T3a': 'Tumor >4 cm limited to the thyroid.', 'T3b': 'Gross extrathyroidal extension invading only strap muscles (sternohyoid, sternothyroid, thyrohyoid, or omohyoid muscles) from a tumor of any size.', 'T4a': 'Gross extrathyroidal extension invading subcutaneous soft tissues, larynx, trachea, esophagus, or recurrent laryngeal nerve from a tumor of any size.', 'T4b': 'Gross extrathyroidal extension invading prevertebral fascia or encasing the carotid artery or mediastinal vessels from a tumor of any size.', 'T1': 'Tumour <=2 cm in greatest dimension, limited to the thyroid (aggregate of T1a/T1b).', 'T3': 'Tumour >4 cm limited to the thyroid, or gross extrathyroidal extension invading only strap muscles (aggregate of T3a/T3b).', 'T4': 'Includes gross extrathyroidal extension beyond the strap muscles (aggregate of T4a/T4b).' }
   },
@@ -4677,7 +4857,7 @@ SITES.thyroidMedullary = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Medullary carcinoma of the thyroid. Calcitonin and CEA are reported separately and do not change the stage group. One stage table serves both clinical and pathologic staging.',
   T: {
-    cats: ['TX', 'T0', 'T1a', 'T1b', 'T2', 'T3a', 'T3b', 'T4a', 'T4b', 'T1', 'T3', 'T4'],
+    cats: ['TX', 'T0', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T3a', 'T3b', 'T4', 'T4a', 'T4b'],
     agg: ['T4'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'T0': 'No evidence of primary tumor.', 'T1a': 'Tumor <=1 cm in greatest dimension limited to the thyroid.', 'T1b': 'Tumor >1 cm but <=2 cm in greatest dimension limited to the thyroid.', 'T2': 'Tumor >2 cm but <=4 cm in greatest dimension limited to the thyroid.', 'T3a': 'Tumor >4 cm in greatest dimension limited to the thyroid.', 'T3b': 'Tumor of any size with gross extrathyroidal extension invading only strap muscles (sternohyoid, sternothyroid, thyrohyoid, or omohyoid muscles).', 'T4a': 'Moderately advanced disease; tumor of any size with gross extrathyroidal extension into the nearby tissues of the neck, including subcutaneous soft tissue, larynx, trachea, esophagus, or recurrent laryngeal nerve.', 'T4b': 'Very advanced disease; tumor of any size with extension toward the spine or into nearby large blood vessels, gross extrathyroidal extension invading the prevertebral fascia, or encasing the carotid artery or mediastinal vessels.', 'T1': 'Tumor <=2 cm in greatest dimension limited to the thyroid.', 'T3': 'Tumor >4 cm or with extrathyroidal extension.', 'T4': 'Includes gross extrathyroidal extension beyond the strap muscles (aggregate of T4a/T4b).' }
   },
@@ -4721,7 +4901,7 @@ SITES.thyroidAnaplastic = {
   ed: { v: 8, label: 'AJCC 8th edition' },
   scope: 'Anaplastic carcinoma of the thyroid. EVERY anaplastic thyroid carcinoma is at least Stage IV; there are no Stage I, II or III groups.',
   T: {
-    cats: ['TX', 'T0', 'T1a', 'T1b', 'T2', 'T3a', 'T3b', 'T4a', 'T4b', 'T1', 'T3', 'T4'],
+    cats: ['TX', 'T0', 'T1', 'T1a', 'T1b', 'T2', 'T3', 'T3a', 'T3b', 'T4', 'T4a', 'T4b'],
     agg: ['T3'],
     def: { 'TX': 'Primary tumor cannot be assessed.', 'T0': 'No evidence of primary tumor.', 'T1a': 'Tumor <=1 cm in greatest dimension, limited to the thyroid.', 'T1b': 'Tumor >1 cm but <=2 cm in greatest dimension, limited to the thyroid.', 'T2': 'Tumor >2 cm but <=4 cm in greatest dimension, limited to the thyroid.', 'T3a': 'Tumor >4 cm limited to the thyroid.', 'T3b': 'Gross extrathyroidal extension invading only strap muscles (sternohyoid, sternothyroid, thyrohyoid, or omohyoid muscles) from a tumor of any size.', 'T4a': 'Gross extrathyroidal extension invading subcutaneous soft tissues, larynx, trachea, esophagus, or recurrent laryngeal nerve from a tumor of any size.', 'T4b': 'Gross extrathyroidal extension invading prevertebral fascia or encasing the carotid artery or mediastinal vessels from a tumor of any size.', 'T1': 'Tumor <=2 cm in greatest dimension, limited to the thyroid.', 'T3': 'Tumour limited to the thyroid gland with gross extrathyroidal extension invading only the strap muscles (aggregate of T3a/T3b).', 'T4': 'Includes gross extrathyroidal extension beyond the strap muscles.' }
   },
