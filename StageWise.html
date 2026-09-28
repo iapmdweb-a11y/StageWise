@@ -83,8 +83,8 @@ footer{padding:8px 20px 28px;color:var(--mut);font-size:11.5px;max-width:1100px}
     <div>
       <h1>StageWise</h1>
       <p>Site-Specific TNM Stage Grouping &mdash; According to AJCC/UICC Criteria.</p>
-      <p class="tag">Every table below is transcribed from the cited source. Nothing is inferred, rounded or
-      borrowed &mdash; where a published table is silent, this app refuses and says so.</p>
+      <p class="tag">StageWise uses only published AJCC / UICC stage tables &mdash;
+      No stage groupings are inferred or assumed.</p>
     </div>
   </div>
 </header>
@@ -1342,7 +1342,7 @@ SITES.mesothelioma = {
   },
   R: { cats: ['RX', 'R0', 'R1', 'R2'], inStage: false, def: { RX: 'Residual tumour cannot be assessed', R0: 'No residual tumour', R1: 'Microscopic residual tumour', R2: 'Macroscopic residual tumour' } },
   sets: [
-    { id: 'mes_c', label: 'Diffuse pleural mesothelioma â€” CLINICAL (cTNM) stage group', mode: 'c', rows: [
+    { id: 'mes_c', label: 'Diffuse pleural mesothelioma — CLINICAL (cTNM) stage group', mode: 'c', rows: [
       { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
       { g: 'II', T: 'T1', N: 'N1', M: 'M0' },
       { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
@@ -1352,7 +1352,7 @@ SITES.mesothelioma = {
       { g: 'IIIB', T: 'T4', N: 'N0,N1,N2', M: 'M0' },
       { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
     ]},
-    { id: 'mes_p', label: 'Diffuse pleural mesothelioma â€” PATHOLOGIC (pTNM) stage group', mode: ['p', 'yp', 'r'], rows: [
+    { id: 'mes_p', label: 'Diffuse pleural mesothelioma — PATHOLOGIC (pTNM) stage group', mode: ['p', 'yp', 'r'], rows: [
       { g: 'IA', T: 'T1', N: 'N0', M: 'M0' },
       { g: 'IB', T: 'T2,T3', N: 'N0', M: 'M0' },
       { g: 'II', T: 'T1,T2', N: 'N1', M: 'M0' },
@@ -1411,7 +1411,7 @@ SITES.nasopharynx = {
     notes: 'In Version 9, M1a/M1b are defined by the NUMBER OF METASTATIC LESIONS, not by anatomic site. This replaces the 8th edition site-based scheme.'
   },
   sets: [
-    { id: 'npc', label: 'Nasopharynx (single stage-group table) â€” AJCC Version 9', rows: [
+    { id: 'npc', label: 'Nasopharynx (single stage-group table) — AJCC Version 9', rows: [
       { g: '0', T: 'Tis', N: 'N0', M: 'M0' },
       { g: 'IA', T: 'T1,T2', N: 'N0', M: 'M0' },
       { g: 'IB', T: 'T0,T1,T2', N: 'N1', M: 'M0' },
@@ -1468,7 +1468,7 @@ SITES.oropharynxHPV = {
   },
   M: { cats: ['M0', 'M1'], def: { M0: 'No distant metastasis', M1: 'Distant metastasis' } },
   sets: [
-    { id: 'op_hpv_c', label: 'Oropharynx HPV-associated â€” CLINICAL (cTNM) stage group, AJCC Version 9 (unchanged from the 8th edition)', mode: 'c', rows: [
+    { id: 'op_hpv_c', label: 'Oropharynx HPV-associated — CLINICAL (cTNM) stage group, AJCC Version 9 (unchanged from the 8th edition)', mode: 'c', rows: [
       { g: 'I', T: 'T0,T1,T2', N: 'N0', M: 'M0' },
       { g: 'I', T: 'T0,T1,T2', N: 'N1', M: 'M0' },
       { g: 'II', T: 'T0,T1,T2', N: 'N2', M: 'M0' },
@@ -1477,7 +1477,7 @@ SITES.oropharynxHPV = {
       { g: 'III', T: 'T4', N: 'N0,N1,N2,N3', M: 'M0' },
       { g: 'IV', T: 'Any T', N: 'Any N', M: 'M1' }
     ]},
-    { id: 'op_hpv_p', label: 'Oropharynx HPV-associated â€” PATHOLOGIC (pTNM) stage group, AJCC Version 9 (REVISED)', mode: ['p', 'yp', 'r'], rows: [
+    { id: 'op_hpv_p', label: 'Oropharynx HPV-associated — PATHOLOGIC (pTNM) stage group, AJCC Version 9 (REVISED)', mode: ['p', 'yp', 'r'], rows: [
       { g: 'I', T: 'T0,T1,T2', N: 'N0,N1', M: 'M0' },
       { g: 'II', T: 'T0,T1,T2', N: 'N2,N3', M: 'M0' },
       { g: 'II', T: 'T3', N: 'N0,N1,N2', M: 'M0' },
@@ -1530,7 +1530,7 @@ SITES.salivary = {
     notes: 'IMPORTANT: histologic grade is NO LONGER used in Version 9 salivary gland stage grouping (it was used in the 8th edition).'
   },
   sets: [
-    { id: 'salivary', label: 'Salivary gland (clinical = pathological) â€” AJCC Version 9', rows: [
+    { id: 'salivary', label: 'Salivary gland (clinical = pathological) — AJCC Version 9', rows: [
       { g: '0', T: 'Tis', N: 'N0', M: 'M0' },
       { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
       { g: 'II', T: 'T2', N: 'N0', M: 'M0' },
@@ -1550,7 +1550,7 @@ SITES.salivary = {
   notes: 'Version 9 (mandatory 1 January 2026) flattened the 8th-edition I / IIA / IIB / IIIA / IIIB / IVA / IVB / IVC structure to I / II / IIIA / IIIB / IV, dropped N3 (ENE now upstages into N2), dropped the T4a/T4b split from the STAGE table (both are retained in the T definitions and combine as T4), and brought minor salivary glands of the upper aerodigestive tract under this protocol. Version 9 also excludes squamous cell carcinoma, neuroendocrine carcinoma and basosquamous carcinoma, which are no longer staged as salivary gland cancers.'
 };
 /* -------------------------------------------------------------------------
-   OESOPHAGUS AND OESOPHAGOGASTRIC JUNCTION  â€”  AJCC 8th Edition
+   OESOPHAGUS AND OESOPHAGOGASTRIC JUNCTION  —  AJCC 8th Edition
    Four DIFFERENT stage-group tables: cTNM, pTNM, and (shared) ypTNM, with
    pTNM and cTNM each split by histologic type. Grade and, for pathologic
    squamous cell carcinoma, tumour location enter the PATHOLOGIC table only.
@@ -1597,7 +1597,7 @@ SITES.oesophagus = {
       G2: 'Moderately differentiated: adenocarcinoma with 50-95% gland formation; squamous cell carcinoma with variable keratinisation, pearl formation generally absent',
       G3: 'Poorly differentiated: adenocarcinoma with nests or sheets of cells, less than 50% gland formation. If glandular origin is determined the cancer is staged as a grade 3 adenocarcinoma; if squamous origin is determined, or the cancer remains undifferentiated, it is staged as a grade 3 squamous cell carcinoma',
       GX: 'Differentiation cannot be assessed',
-      GNA: 'Grade not applicable â€” used only in pathologic Stage 0'
+      GNA: 'Grade not applicable — used only in pathologic Stage 0'
     },
     notes: 'Grade enters the PATHOLOGIC stage group only; the AJCC 8 expert panel deliberately removed grade from the cTNM tables because of unreliable grading on small biopsies. It is also excluded from the ypTNM table.'
   },
@@ -1611,7 +1611,7 @@ SITES.oesophagus = {
       notes: 'Location is defined by the EPICENTRE of the tumour in the 8th edition (it was the upper edge in the 7th). It changes the pathologic stage group of squamous cell carcinoma only.' }
   ],
   sets: [
-    { id: 'oe_c_scc', label: 'Oesophagus â€” CLINICAL (cTNM), squamous cell carcinoma', mode: 'c', histo: ['Squamous cell carcinoma'], rows: [
+    { id: 'oe_c_scc', label: 'Oesophagus — CLINICAL (cTNM), squamous cell carcinoma', mode: 'c', histo: ['Squamous cell carcinoma'], rows: [
       { g: '0', T: 'Tis', N: 'N0', M: 'M0' },
       { g: 'I', T: 'T1', N: 'N0,N1', M: 'M0' },
       { g: 'II', T: 'T2', N: 'N0,N1', M: 'M0' },
@@ -1622,7 +1622,7 @@ SITES.oesophagus = {
       { g: 'IVA', T: 'Any T', N: 'N3', M: 'M0' },
       { g: 'IVB', T: 'Any T', N: 'Any N', M: 'M1' }
     ]},
-    { id: 'oe_c_ad', label: 'Oesophagus â€” CLINICAL (cTNM), adenocarcinoma', mode: 'c', histo: ['Adenocarcinoma'], rows: [
+    { id: 'oe_c_ad', label: 'Oesophagus — CLINICAL (cTNM), adenocarcinoma', mode: 'c', histo: ['Adenocarcinoma'], rows: [
       { g: '0', T: 'Tis', N: 'N0', M: 'M0' },
       { g: 'I', T: 'T1', N: 'N0', M: 'M0' },
       { g: 'IIA', T: 'T1', N: 'N1', M: 'M0' },
@@ -1634,7 +1634,7 @@ SITES.oesophagus = {
       { g: 'IVA', T: 'Any T', N: 'N3', M: 'M0' },
       { g: 'IVB', T: 'Any T', N: 'Any N', M: 'M1' }
     ]},
-    { id: 'oe_p_scc', label: 'Oesophagus â€” PATHOLOGIC (pTNM), squamous cell carcinoma', mode: ['p', 'r'], histo: ['Squamous cell carcinoma'], rows: [
+    { id: 'oe_p_scc', label: 'Oesophagus — PATHOLOGIC (pTNM), squamous cell carcinoma', mode: ['p', 'r'], histo: ['Squamous cell carcinoma'], rows: [
       { g: '0', T: 'Tis', N: 'N0', M: 'M0', G: 'GNA' },
       { g: 'IA', T: 'T1a', N: 'N0', M: 'M0', G: 'G1,GX' },
       { g: 'IB', T: 'T1a', N: 'N0', M: 'M0', G: 'G2,G3' },
@@ -1657,7 +1657,7 @@ SITES.oesophagus = {
       { g: 'IVA', T: 'Any T', N: 'N3', M: 'M0', G: 'Any G' },
       { g: 'IVB', T: 'Any T', N: 'Any N', M: 'M1', G: 'Any G' }
     ]},
-    { id: 'oe_p_ad', label: 'Oesophagus â€” PATHOLOGIC (pTNM), adenocarcinoma', mode: ['p', 'r'], histo: ['Adenocarcinoma'], rows: [
+    { id: 'oe_p_ad', label: 'Oesophagus — PATHOLOGIC (pTNM), adenocarcinoma', mode: ['p', 'r'], histo: ['Adenocarcinoma'], rows: [
       { g: '0', T: 'Tis', N: 'N0', M: 'M0', G: 'GNA' },
       { g: 'IA', T: 'T1a', N: 'N0', M: 'M0', G: 'G1,GX' },
       { g: 'IB', T: 'T1a', N: 'N0', M: 'M0', G: 'G2' },
@@ -1679,7 +1679,7 @@ SITES.oesophagus = {
     ]}
   ],
   ypSets: [
-    { id: 'oe_yp', label: 'Oesophagus â€” POST-NEOADJUVANT (ypTNM), both histologic types', mode: 'yp', rows: [
+    { id: 'oe_yp', label: 'Oesophagus — POST-NEOADJUVANT (ypTNM), both histologic types', mode: 'yp', rows: [
       { g: 'I', T: 'T0,T1,T1a,T1b,T2', N: 'N0', M: 'M0' },
       { g: 'II', T: 'T3', N: 'N0', M: 'M0' },
       { g: 'IIIA', T: 'T0,T1,T1a,T1b,T2', N: 'N1', M: 'M0' },
@@ -1706,7 +1706,7 @@ SITES.oesophagus = {
 
 
 /* -------------------------------------------------------------------------
-   APPENDIX CARCINOMA  â€”  AJCC Version 9 (2023)
+   APPENDIX CARCINOMA  —  AJCC Version 9 (2023)
    N1c = tumour deposits without nodal metastasis. pM1a = acellular mucin.
    Stage IVA no longer requires N0 for M1a. Grade stratifies M1b only.
    ---------------------------------------------------------------------- */
@@ -1723,7 +1723,7 @@ SITES.appendix = {
       TX: 'Primary tumour cannot be assessed',
       T0: 'No evidence of primary tumour',
       Tis: 'Carcinoma in situ (intramucosal carcinoma; invasion of the lamina propria or extension into but not through the muscularis mucosae). Version 9 no longer uses the pTis term for HAMN.',
-      TisLAMN: 'Low-grade appendiceal mucinous neoplasm (LAMN) involving the wall â€” classified as in situ',
+      TisLAMN: 'Low-grade appendiceal mucinous neoplasm (LAMN) involving the wall — classified as in situ',
       T1: 'Tumour 2 cm or less in greatest dimension',
       T2: 'Tumour more than 2 cm but not more than 4 cm in greatest dimension',
       T3: 'Tumour more than 4 cm but not more than 6 cm in greatest dimension',
@@ -6584,9 +6584,9 @@ function axisSelect(ax){
   var id = 'ax_' + ax;
   lab.setAttribute('for', id);
   var sel = el('select'); sel.id = id;
-  var blank = el('option', null, 'â€” select â€”'); blank.value = ''; sel.appendChild(blank);
+  var blank = el('option', null, '— select —'); blank.value = ''; sel.appendChild(blank);
   list.forEach(function (c){
-    var o = el('option', null, c + (defOf(site, ax, c) ? '  â€”  ' + defOf(site, ax, c) : ''));
+    var o = el('option', null, c + (defOf(site, ax, c) ? '  —  ' + defOf(site, ax, c) : ''));
     o.value = c; sel.appendChild(o);
   });
   if (S[ax] && list.indexOf(S[ax]) < 0) S[ax] = '';
@@ -6607,9 +6607,9 @@ function extraInputs(){
     var id = 'ex_' + spec.k;
     lab.setAttribute('for', id);
     var sel = el('select'); sel.id = id;
-    var blank = el('option', null, 'â€” select â€”'); blank.value = ''; sel.appendChild(blank);
+    var blank = el('option', null, '— select —'); blank.value = ''; sel.appendChild(blank);
     (spec.opts || []).forEach(function (o){
-      var opt = el('option', null, o + (spec.defs && spec.defs[o] ? '  â€”  ' + spec.defs[o] : ''));
+      var opt = el('option', null, o + (spec.defs && spec.defs[o] ? '  —  ' + spec.defs[o] : ''));
       opt.value = o; sel.appendChild(opt);
     });
     sel.value = S.E[spec.k] || '';
@@ -6799,8 +6799,8 @@ function render(){
     row('Table used', res.matched.setLabel);
     row('Basis', res.modeUsed.toUpperCase());
     row('Published row', 'group ' + (m.g != null ? m.g : res.matched.label) +
-                        '   T: ' + (m.T || 'â€”') + '   N: ' + (m.N || 'â€”') +
-                        '   M: ' + (m.M || 'â€”') + (m.G ? '   G: ' + m.G : ''));
+                        '   T: ' + (m.T || '—') + '   N: ' + (m.N || '—') +
+                        '   M: ' + (m.M || '—') + (m.G ? '   G: ' + m.G : ''));
     if (res.suffix) row('Suffix', res.suffix);
     row('Provenance', pl.t);
     t.appendChild(tb);
